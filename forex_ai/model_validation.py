@@ -85,7 +85,7 @@ def validate_approval_record(path: str | Path = "approval_record.json") -> bool:
     if not approval_path.exists():
         return False
     payload = json.loads(approval_path.read_text(encoding="utf-8"))
-    return (
+    return bool(
         payload.get("schema_version") == REQUIRED_APPROVAL_SCHEMA_VERSION
         and payload.get("decision") == "approved_for_live"
         and bool(payload.get("model_id"))
@@ -102,7 +102,7 @@ def validate_paper_evidence(path: str | Path) -> bool:
     if not evidence_path.exists():
         return False
     payload = json.loads(evidence_path.read_text(encoding="utf-8"))
-    return (
+    return bool(
         payload.get("schema_version") == 1
         and payload.get("validation_status") == "passed"
         and int(payload.get("sample_count", 0)) >= 100

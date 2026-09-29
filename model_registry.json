@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "system": "Forex AI Intelligence Engine",
+  "approval_policy": "LIVE_APPROVAL_POLICY.md",
+  "models": {},
+  "system_status": "GOVERNED / NOT LIVE",
+  "approval_required": true
+}

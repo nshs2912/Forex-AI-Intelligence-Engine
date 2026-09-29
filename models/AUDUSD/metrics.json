@@ -1,7 +1,7 @@
 {
-  "roc_auc": 0.48828940021746153,
-  "pr_auc": 0.47984535526142946,
-  "brier_score": 0.2602767735095994,
+  "roc_auc": 0.4882894002174615,
+  "pr_auc": 0.4796665531351343,
+  "brier_score": 0.2602770652248398,
   "accuracy": 0.46216216216216216,
   "precision": 0.46216216216216216,
   "recall": 1.0,
@@ -10,5 +10,8 @@
   "test_rows": 370,
   "test_positive_rate": 0.46216216216216216,
   "dataset_start": "1993-04-27",
-  "dataset_end": "2023-01-10"
+  "dataset_end": "2023-01-10",
+  "data_source": "nktcodes/Forex-Data",
+  "horizon_bars": 5,
+  "threshold": 0.005
 }

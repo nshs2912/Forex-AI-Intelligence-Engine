@@ -1,2 +1,4 @@
 pytest>=8.0,<9
 streamlit>=1.40,<2
+
+streamlit-autorefresh>=1.0.1,<2

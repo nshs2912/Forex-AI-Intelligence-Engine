@@ -50,5 +50,10 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add models
-          git diff --cached --quiet || git commit -m "Train calibrated Forex ML models"
+          if git diff --cached --quiet; then
+            echo "No model changes to commit"
+            exit 0
+          fi
+          git commit -m "Train calibrated Forex ML models"
+          git pull --rebase origin main
           git push

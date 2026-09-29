@@ -190,15 +190,31 @@ if data_mode == "Live" and instrument in MAJOR_PAIRS and live_quote is not None:
 signal = combine_signals(fundamental, technical, ml)
 
 if signal.direction == "bullish":
-    trade_action = "BUY"
+    raw_action = "BUY"
 elif signal.direction == "bearish":
-    trade_action = "SELL"
+    raw_action = "SELL"
 else:
-    trade_action = "WAIT"
+    raw_action = "WAIT"
 
+dss = assess_dss(
+    model_status=(
+        ml_inference.model.status
+        if ml_inference is not None
+        else "model_unavailable"
+    ),
+    calibrated=probability.calibrated,
+    data_fresh=(live_quote is not None) if data_mode == "Live" else False,
+    feature_parity=ml_inference is not None,
+    model_metrics_available=bool(
+        ml_inference is not None and ml_inference.model.metrics
+    ),
+    risk_controls_ok=True,
+)
+
+trade_action = raw_action if dss.ready else "GOVERNED"
 risk_side = (
-    "Long" if trade_action == "BUY"
-    else "Short" if trade_action == "SELL"
+    "Long" if raw_action == "BUY"
+    else "Short" if raw_action == "SELL"
     else side
 )
 
@@ -214,7 +230,7 @@ setup = build_trade_setup(
 
 st.subheader("🎯 AI Market Signal")
 a0, a1, a2, a3 = st.columns(4)
-a0.metric("Position", trade_action)
+a0.metric("DSS Action", trade_action)
 a1.metric("Reference Price", f"{entry:.6f}")
 a2.metric(
     "Bullish",
@@ -225,8 +241,8 @@ a3.metric(
     f"{probability.bearish_probability:.1%}" if probability.bearish_probability is not None else "N/A",
 )
 st.caption(
-    "Calibrated probability: not available. The current engine exposes a directional score; "
-    "a held-out calibration model is required before displaying a true probability."
+    "Probability hanya ditampilkan bila calibrated inference benar-benar tersedia. "
+    "Signal Score bukan probabilitas."
 )
 
 m0, m1, m2, m3, m4 = st.columns(5)
@@ -237,22 +253,7 @@ m3.metric("Take Profit", f"{setup.take_profit:.6f}")
 m4.metric("R:R", f"{setup.risk_reward:.2f}")
 st.caption(
     f"Signal confidence: {signal.confidence:.0%} · "
-    f"Probability status: {probability.status} · ML data: {ml_data_status}"
-)
-
-dss = assess_dss(
-    model_status=(
-        ml_inference.model.status
-        if ml_inference is not None
-        else "model_unavailable"
-    ),
-    calibrated=probability.calibrated,
-    data_fresh=(live_quote is not None) if data_mode == "Live" else False,
-    feature_parity=ml_inference is not None,
-    model_metrics_available=bool(
-        ml_inference is not None and ml_inference.model.metrics
-    ),
-    risk_controls_ok=setup.risk_reward >= 1.0,
+    f"Raw direction: {raw_action} · Probability status: {probability.status} · ML data: {ml_data_status}"
 )
 
 st.subheader("🧭 DSS Governance")
@@ -275,6 +276,7 @@ signal_class = {
     "BUY": "🟢 BUY",
     "SELL": "🔴 SELL",
     "WAIT": "🟡 WAIT",
+    "GOVERNED": "🛡️ GOVERNED",
 }[trade_action]
 
 score = signal.score
@@ -311,7 +313,12 @@ with card:
 
     st.caption("Interpretasi score: −1.00 = bearish kuat · −0.15 = batas bearish · 0.00 = netral · +0.15 = batas bullish · +1.00 = bullish kuat.")
 
-    if trade_action == "WAIT":
+    if trade_action == "GOVERNED":
+        st.warning(
+            f"DSS GOVERNED — raw analysis = {raw_action}, tetapi action BUY/SELL "
+            "ditahan karena seluruh production gates belum terpenuhi. Risk levels ditampilkan sebagai simulasi."
+        )
+    elif trade_action == "WAIT":
         st.warning("WAIT — score berada di zona netral (−0.15 sampai +0.15), sehingga belum ada arah BUY/SELL yang cukup kuat. Risk levels ditampilkan sebagai simulasi.")
     else:
         st.info(f"{trade_action} — Entry Price menggunakan harga referensi saat ini: {setup.entry:.6f}.")

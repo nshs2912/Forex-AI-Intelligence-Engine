@@ -161,10 +161,8 @@ with st.expander(f"Fundamental data & drivers — {instrument}", expanded=False)
         st.caption(f"Dampak yang dipantau: {details['impact']}")
         st.caption(f"Status sumber: {details['source_status']}")
 
-signal = combine_signals(fundamental, technical, ml)
-
-# Do not convert the ensemble score into a fake probability.
-# A probability is shown only when a separately trained/calibrated model is supplied.
+# Start without a probability; live ML inference replaces this only when all
+# required daily features and a governed model artifact are available.
 probability = unavailable_result()
 ml_inference = None
 ml_data_status = "not_attempted"

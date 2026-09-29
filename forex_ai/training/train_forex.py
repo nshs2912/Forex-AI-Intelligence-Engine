@@ -161,6 +161,7 @@ def train_symbol(symbol: str, output_dir: Path) -> dict:
     model_payload = {
         "schema_version": 1,
         "instrument": symbol,
+        "model_id": symbol.replace("/", ""),
         "timeframe": "1D",
         "model_type": "logistic_regression",
         "calibration": "platt_sigmoid",

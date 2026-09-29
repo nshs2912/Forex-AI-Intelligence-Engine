@@ -1,28 +1,23 @@
-"""Validated live fundamental intelligence from Trading Economics macro + news feeds.
-
-The engine deliberately separates provider availability from score calculation.
-No API credential means UNAVAILABLE; missing events are never converted to zero.
-The score is a transparent heuristic based on actual-vs-forecast surprise,
-event importance, and freshness. It is decision-support evidence, not a
-probability or an autonomous trading instruction.
-"""
+"""Validated live fundamental intelligence from macro and news feeds."""
 from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+import json
 import math
 import os
+from urllib.error import HTTPError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
-import json
 
 try:
     import streamlit as st
-except ImportError:  # pragma: no cover
+except ImportError:
     st = None
 
 TE_URL = "https://api.tradingeconomics.com/calendar/country"
 NEWS_URL = "https://api.tradingeconomics.com/news/country"
+
 PAIR_CURRENCIES = {
     "EUR/USD": ("Euro Area", "United States"),
     "USD/JPY": ("United States", "Japan"),
@@ -32,42 +27,24 @@ PAIR_CURRENCIES = {
     "USD/CAD": ("United States", "Canada"),
     "NZD/USD": ("New Zealand", "United States"),
 }
-CURRENCY_CODES = {
-    "Euro Area": "EUR",
-    "United States": "USD",
-    "United Kingdom": "GBP",
-    "Japan": "JPY",
-    "Australia": "AUD",
-    "Switzerland": "CHF",
-    "Canada": "CAD",
-    "New Zealand": "NZD",
+
+POLARITY_RULES = {
+    "interest": 1.0, "rate": 1.0, "gdp": 1.0, "growth": 1.0,
+    "pmi": 1.0, "retail": 1.0, "industrial": 1.0, "production": 1.0,
+    "employment": 1.0, "payroll": 1.0, "wage": 1.0, "income": 1.0,
+    "trade": 1.0, "exports": 1.0, "imports": -1.0,
+    "unemployment": -1.0, "jobless": -1.0, "inflation": 1.0,
+    "cpi": 1.0, "ppi": 1.0, "confidence": 1.0, "sentiment": 1.0,
 }
 
-# Transparent first-order economic intuition. Events outside these groups
-# contribute no directional score rather than being guessed.
-POLARITY_RULES = {
-    "interest": 1.0,
-    "rate": 1.0,
-    "gdp": 1.0,
-    "growth": 1.0,
-    "pmi": 1.0,
-    "retail": 1.0,
-    "industrial": 1.0,
-    "production": 1.0,
-    "employment": 1.0,
-    "payroll": 1.0,
-    "wage": 1.0,
-    "income": 1.0,
-    "trade": 1.0,
-    "exports": 1.0,
-    "imports": -1.0,
-    "unemployment": -1.0,
-    "jobless": -1.0,
-    "inflation": 1.0,
-    "cpi": 1.0,
-    "ppi": 1.0,
-    "confidence": 1.0,
-    "sentiment": 1.0,
+NEWS_POLARITY = {
+    "hawkish": 1.0, "rate hike": 1.0, "raises rates": 1.0,
+    "strong growth": 1.0, "beats expectations": 1.0,
+    "beat expectations": 1.0, "strong employment": 1.0,
+    "dovish": -1.0, "rate cut": -1.0, "cuts rates": -1.0,
+    "weak growth": -1.0, "misses expectations": -1.0,
+    "miss expectations": -1.0, "weak employment": -1.0,
+    "recession": -1.0, "default": -1.0, "crisis": -1.0,
 }
 
 @dataclass(frozen=True)
@@ -82,6 +59,10 @@ class FundamentalResult:
     components: dict[str, float]
     evidence: tuple[dict[str, object], ...]
     message: str
+    macro_score: float | None = None
+    news_score: float | None = None
+    news_status: str = "UNAVAILABLE"
+    news_evidence_count: int = 0
 
 class FundamentalDataError(RuntimeError):
     """Raised when a configured fundamental provider cannot be read."""
@@ -111,6 +92,16 @@ def _number(value: object) -> float | None:
     except ValueError:
         return None
 
+def _parse_datetime(value: object) -> datetime:
+    if not value:
+        return datetime.now(timezone.utc)
+    text = str(value).replace("Z", "+00:00")
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        return datetime.now(timezone.utc)
+    return parsed.replace(tzinfo=timezone.utc) if parsed.tzinfo is None else parsed.astimezone(timezone.utc)
+
 def _polarity(event: str) -> float:
     text = event.lower()
     for keyword, value in POLARITY_RULES.items():
@@ -130,53 +121,47 @@ def _event_score(event: dict[str, object], now: datetime) -> float | None:
     surprise = (actual - forecast) / baseline
     importance = max(1.0, min(3.0, float(event.get("Importance") or 1)))
     stamp = _parse_datetime(event.get("Date"))
-    age_hours = max(0.0, (now - stamp).total_seconds() / 3600.0)
-    freshness = math.exp(-age_hours / 72.0)
+    freshness = math.exp(-max(0.0, (now - stamp).total_seconds() / 3600.0) / 72.0)
     return _clamp(math.tanh(surprise * 4.0) * polarity * (0.75 + 0.25 * importance) * freshness)
 
-def _parse_datetime(value: object) -> datetime:
-    if not value:
-        return datetime.now(timezone.utc)
-    text = str(value).replace("Z", "+00:00")
-    try:
-        parsed = datetime.fromisoformat(text)
-    except ValueError:
-        return datetime.now(timezone.utc)
-    return parsed.replace(tzinfo=timezone.utc) if parsed.tzinfo is None else parsed.astimezone(timezone.utc)
-
-def _fetch_country(country: str, start: datetime, end: datetime, timeout: float) -> list[dict[str, object]]:
-    api_key = _secret("TRADING_ECONOMICS_API_KEY")
-    if not api_key:
-        raise FundamentalDataError(
-            "TRADING_ECONOMICS_API_KEY is not configured. Fundamental score remains unavailable."
-        )
-    url = (
-        f"{TE_URL}/{quote(country)}/{start:%Y-%m-%d}/{end:%Y-%m-%d}"
-        f"?c={quote(api_key)}&f=json"
-    )
+def _request_json(url: str, timeout: float, provider_label: str) -> list[dict[str, object]]:
     request = Request(url, headers={"User-Agent": "Forex-AI-Intelligence-Engine/1.0"})
     try:
         with urlopen(request, timeout=timeout) as response:
             payload = json.loads(response.read().decode("utf-8"))
+    except HTTPError as exc:
+        if exc.code == 429:
+            raise FundamentalDataError(f"{provider_label} rate limit exceeded (HTTP 429).") from exc
+        raise FundamentalDataError(f"{provider_label} request failed: HTTP {exc.code}.") from exc
     except Exception as exc:
-        raise FundamentalDataError(f"Fundamental provider request failed: {exc}") from exc
+        raise FundamentalDataError(f"{provider_label} request failed: {exc}") from exc
     if not isinstance(payload, list):
-        raise FundamentalDataError("Fundamental provider returned an invalid calendar payload")
+        raise FundamentalDataError(f"{provider_label} returned an invalid payload.")
     return [item for item in payload if isinstance(item, dict)]
 
-def _currency_score(
-    events: list[dict[str, object]], now: datetime
-) -> tuple[float | None, int, int, list[dict[str, object]]]:
-    weighted: list[tuple[float, float, dict[str, object]]] = []
+def _fetch_country(country: str, start: datetime, end: datetime, timeout: float) -> list[dict[str, object]]:
+    api_key = _secret("TRADING_ECONOMICS_API_KEY")
+    if not api_key:
+        raise FundamentalDataError("TRADING_ECONOMICS_API_KEY is not configured.")
+    url = f"{TE_URL}/{quote(country)}/{start:%Y-%m-%d}/{end:%Y-%m-%d}?c={quote(api_key)}&f=json"
+    return _request_json(url, timeout, "Trading Economics macro feed")
+
+def _fetch_country_news(country: str, start: datetime, end: datetime, timeout: float) -> list[dict[str, object]]:
+    api_key = _secret("TRADING_ECONOMICS_API_KEY")
+    if not api_key:
+        raise FundamentalDataError("TRADING_ECONOMICS_API_KEY is not configured.")
+    url = f"{NEWS_URL}/{quote(country)}/{start:%Y-%m-%d}/{end:%Y-%m-%d}?c={quote(api_key)}&f=json"
+    return _request_json(url, timeout, "Trading Economics news feed")
+
+def _currency_score(events: list[dict[str, object]], now: datetime) -> tuple[float | None, int, int, list[dict[str, object]]]:
+    weighted = []
     for event in events:
         score = _event_score(event, now)
         if score is None:
             continue
         importance = max(1.0, min(3.0, float(event.get("Importance") or 1)))
         stamp = _parse_datetime(event.get("Date"))
-        age_hours = max(0.0, (now - stamp).total_seconds() / 3600.0)
-        freshness = math.exp(-age_hours / 72.0)
-        weight = importance * freshness
+        freshness = math.exp(-max(0.0, (now - stamp).total_seconds() / 3600.0) / 72.0)
         evidence = {
             "event": event.get("Event") or event.get("Category"),
             "date": event.get("Date"),
@@ -188,7 +173,7 @@ def _currency_score(
             "source_url": event.get("SourceURL"),
             "score": round(score, 4),
         }
-        weighted.append((score, weight, evidence))
+        weighted.append((score, importance * freshness, evidence))
     if not weighted:
         return None, 0, 0, []
     denominator = sum(weight for _, weight, _ in weighted)
@@ -197,8 +182,67 @@ def _currency_score(
         1 for _, _, evidence in weighted
         if (now - _parse_datetime(evidence["date"])).total_seconds() <= 72 * 3600
     )
-    evidence = [item[2] for item in sorted(weighted, key=lambda x: x[1], reverse=True)]
+    evidence = [item[2] for item in sorted(weighted, key=lambda item: item[1], reverse=True)]
     return _clamp(value), len(weighted), fresh, evidence
+
+def _news_item_score(item: dict[str, object], now: datetime) -> float | None:
+    text = " ".join(
+        str(item.get(key) or "")
+        for key in ("title", "Title", "description", "Description", "category", "Category")
+    ).lower()
+    matches = [value for keyword, value in NEWS_POLARITY.items() if keyword in text]
+    if not matches:
+        return None
+    polarity = sum(matches) / len(matches)
+    stamp = _parse_datetime(item.get("date") or item.get("Date") or item.get("published") or item.get("Published"))
+    freshness = math.exp(-max(0.0, (now - stamp).total_seconds() / 3600.0) / 48.0)
+    return _clamp(polarity * freshness)
+
+def _news_currency_score(items: list[dict[str, object]], now: datetime) -> tuple[float | None, int, list[dict[str, object]]]:
+    scored = []
+    for item in items:
+        score = _news_item_score(item, now)
+        if score is None:
+            continue
+        stamp = _parse_datetime(item.get("date") or item.get("Date") or item.get("published") or item.get("Published"))
+        evidence = {
+            "title": item.get("title") or item.get("Title"),
+            "date": item.get("date") or item.get("Date") or item.get("published") or item.get("Published"),
+            "source": item.get("source") or item.get("Source"),
+            "url": item.get("url") or item.get("URL") or item.get("source_url") or item.get("SourceURL"),
+            "score": round(score, 4),
+        }
+        weight = math.exp(-max(0.0, (now - stamp).total_seconds() / 3600.0) / 48.0)
+        scored.append((score, weight, evidence))
+    if not scored:
+        return None, 0, []
+    denominator = sum(weight for _, weight, _ in scored)
+    value = sum(score * weight for score, weight, _ in scored) / denominator
+    evidence = [item[2] for item in sorted(scored, key=lambda item: item[1], reverse=True)]
+    return _clamp(value), len(scored), evidence
+
+def fetch_live_news_score(
+    instrument: str,
+    *,
+    lookback_days: int = 3,
+    timeout: float = 10.0,
+    now: datetime | None = None,
+) -> tuple[float | None, str, int, tuple[dict[str, object], ...], str]:
+    if instrument not in PAIR_CURRENCIES:
+        return None, "UNAVAILABLE", 0, (), "Instrument has no mapped news currencies."
+    current = now or datetime.now(timezone.utc)
+    start = current - timedelta(days=max(1, lookback_days))
+    try:
+        base_items = _fetch_country_news(PAIR_CURRENCIES[instrument][0], start, current, timeout)
+        quote_items = _fetch_country_news(PAIR_CURRENCIES[instrument][1], start, current, timeout)
+    except FundamentalDataError as exc:
+        return None, "UNAVAILABLE", 0, (), str(exc)
+    base, base_count, base_evidence = _news_currency_score(base_items, current)
+    quote, quote_count, quote_evidence = _news_currency_score(quote_items, current)
+    if base is None and quote is None:
+        return None, "DEGRADED", 0, (), "No directional validated live headlines."
+    score = _clamp((base or 0.0) - (quote or 0.0))
+    return score, "LIVE", base_count + quote_count, tuple(base_evidence + quote_evidence), "Live validated news score."
 
 def fetch_fundamental_score(
     instrument: str,
@@ -207,43 +251,36 @@ def fetch_fundamental_score(
     timeout: float = 10.0,
     now: datetime | None = None,
 ) -> FundamentalResult:
-    """Fetch recent macro releases and live news, then calculate a pair-relative score."""
     if instrument not in PAIR_CURRENCIES:
         return FundamentalResult(
             None, None, None, "UNAVAILABLE", "Trading Economics", 0, 0, {}, (),
-            "Instrument has no mapped macro/news currency pair.", None, None, "UNAVAILABLE", 0
+            "Instrument has no mapped macro/news currency pair."
         )
     current = now or datetime.now(timezone.utc)
     start = current - timedelta(days=max(1, lookback_days))
-    countries = PAIR_CURRENCIES[instrument]
+    base_macro = quote_macro = None
+    macro_score = None
+    macro_count = macro_fresh = 0
+    macro_evidence = []
+    macro_message = ""
     try:
-        base_events = _fetch_country(countries[0], start, current, timeout)
-        quote_events = _fetch_country(countries[1], start, current, timeout)
+        base_events = _fetch_country(PAIR_CURRENCIES[instrument][0], start, current, timeout)
+        quote_events = _fetch_country(PAIR_CURRENCIES[instrument][1], start, current, timeout)
+        base_macro, base_count, base_fresh, base_evidence = _currency_score(base_events, current)
+        quote_macro, quote_count, quote_fresh, quote_evidence = _currency_score(quote_events, current)
+        macro_count = base_count + quote_count
+        macro_fresh = base_fresh + quote_fresh
+        macro_evidence = base_evidence + quote_evidence
+        if base_macro is not None and quote_macro is not None:
+            macro_score = _clamp(base_macro - quote_macro)
+        else:
+            macro_message = "Insufficient directional macro evidence."
     except FundamentalDataError as exc:
-        news_score, news_status, news_count, news_evidence, news_message = fetch_live_news_score(
-            instrument, lookback_days=min(lookback_days, 3), timeout=timeout, now=current
-        )
-        if news_score is not None:
-            return FundamentalResult(
-                news_score, None, None, "DEGRADED", "Trading Economics", news_count, 0,
-                {"macro": 0.0, "news": news_score}, tuple(news_evidence),
-                f"Macro unavailable; news-only evidence. {exc}", None, news_score, news_status, news_count
-            )
-        return FundamentalResult(
-            None, None, None, "UNAVAILABLE", "Trading Economics", 0, 0, {}, tuple(news_evidence),
-            str(exc), None, None, news_status, news_count
-        )
-
-    base, base_count, base_fresh, base_evidence = _currency_score(base_events, current)
-    quote, quote_count, quote_fresh, quote_evidence = _currency_score(quote_events, current)
-    macro_score = _clamp(base - quote) if base is not None and quote is not None else None
+        macro_message = str(exc)
 
     news_score, news_status, news_count, news_evidence, news_message = fetch_live_news_score(
         instrument, lookback_days=min(lookback_days, 3), timeout=timeout, now=current
     )
-    all_evidence = base_evidence + quote_evidence + list(news_evidence)
-    macro_count = base_count + quote_count
-    fresh_count = base_fresh + quote_fresh
 
     if macro_score is not None and news_score is not None:
         score = _clamp(0.70 * macro_score + 0.30 * news_score)
@@ -252,21 +289,35 @@ def fetch_fundamental_score(
     elif macro_score is not None:
         score = macro_score
         status = "DEGRADED"
-        message = f"Live macro intelligence only. {news_message}"
+        message = f"Macro live; news unavailable. {news_message}"
     elif news_score is not None:
         score = news_score
         status = "DEGRADED"
-        message = f"Validated live news intelligence only. Macro evidence unavailable."
+        message = f"News live; macro unavailable. {macro_message}"
     else:
         score = None
         status = "DEGRADED" if macro_count or news_count else "UNAVAILABLE"
-        message = "Insufficient validated macro/news evidence."
+        message = macro_message or news_message or "Insufficient validated macro/news evidence."
 
+    evidence = tuple(macro_evidence + list(news_evidence))
+    components = {
+        "macro": macro_score if macro_score is not None else 0.0,
+        "news": news_score if news_score is not None else 0.0,
+        "combined": score if score is not None else 0.0,
+    }
     return FundamentalResult(
-        score, base, quote, status, "Trading Economics", macro_count + news_count,
-        fresh_count,
-        {"macro": macro_score if macro_score is not None else 0.0,
-         "news": news_score if news_score is not None else 0.0,
-         "combined": score if score is not None else 0.0},
-        tuple(all_evidence), message, macro_score, news_score, news_status, news_count
+        score,
+        base_macro,
+        quote_macro,
+        status,
+        "Trading Economics",
+        macro_count + news_count,
+        macro_fresh,
+        components,
+        evidence,
+        message,
+        macro_score=macro_score,
+        news_score=news_score,
+        news_status=news_status,
+        news_evidence_count=news_count,
     )

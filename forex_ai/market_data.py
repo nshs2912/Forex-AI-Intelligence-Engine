@@ -76,7 +76,7 @@ def fetch_live_quote(symbol: str, timeout: float = 10.0) -> MarketQuote:
     except (KeyError, TypeError, ValueError) as exc:
         raise MarketDataError("Provider response does not contain a valid price") from exc
 
-    timestamp = _parse_timestamp(payload.get("datetime"))
+    timestamp = _parse_timestamp(payload.get("datetime"), payload.get("timestamp"))
     bid = _optional_float(payload.get("bid"))
     ask = _optional_float(payload.get("ask"))
 
@@ -99,7 +99,12 @@ def _optional_float(value) -> float | None:
         return None
 
 
-def _parse_timestamp(value) -> datetime:
+def _parse_timestamp(value, unix_timestamp=None) -> datetime:
+    if unix_timestamp not in (None, ""):
+        try:
+            return datetime.fromtimestamp(float(unix_timestamp), tz=timezone.utc)
+        except (TypeError, ValueError, OverflowError):
+            pass
     if value:
         text = str(value).replace("Z", "+00:00")
         try:

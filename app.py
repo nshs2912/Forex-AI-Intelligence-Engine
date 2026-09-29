@@ -169,10 +169,9 @@ if data_mode == "Live" and live_quote:
           </div>
         </div>
         <script>
-          const receivedMs = {received_ms};
           const tz = {tz_name!r};
           function tick() {{
-            const now = new Date(Date.now() + (Date.now() - receivedMs));
+            const now = new Date();
             const parts = new Intl.DateTimeFormat("en-GB", {{
               timeZone: tz,
               day: "2-digit", month: "2-digit", year: "numeric",

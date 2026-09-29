@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "instrument": "USD/CHF",
+  "timeframe": "1D",
+  "model_type": "logistic_regression",
+  "calibration": "platt_sigmoid",
+  "features": [
+    "ret_1",
+    "ret_5",
+    "ret_10",
+    "ret_20",
+    "vol_10",
+    "vol_20",
+    "range_pct",
+    "volume_change"
+  ],
+  "label": {
+    "type": "binary_direction",
+    "horizon_bars": 5,
+    "threshold": 0.005,
+    "positive": "forward_return >= +0.5%",
+    "negative": "forward_return <= -0.5%"
+  },
+  "scaler_mean": [
+    -8.945886788677683e-05,
+    -0.0003432855281188602,
+    -0.0005468690234525112,
+    -0.0008824657191419783,
+    0.006827342768239196,
+    0.0069473384302311866,
+    0.008719149170360334,
+    14.579755640738327
+  ],
+  "scaler_scale": [
+    0.007492791707806277,
+    0.01643218603177513,
+    0.02347320837073516,
+    0.03343073749058926,
+    0.0030044235724827765,
+    0.002691750727889985,
+    0.007128325916932098,
+    799.5785178411433
+  ],
+  "model_coef": [
+    -0.03294002369954657,
+    0.020572711271828338,
+    0.0007635276433015559,
+    0.08707652655599918,
+    -0.11147438570694508,
+    0.16462587281139196,
+    -0.01990496243725101,
+    -0.006499040117742434
+  ],
+  "model_intercept": 0.0005784346356455738,
+  "calibration_coef": -1.0801739775686,
+  "calibration_intercept": -0.2967824229242086,
+  "metrics": {
+    "roc_auc": 0.5623916184971098,
+    "pr_auc": 0.5817131422453348,
+    "brier_score": 0.2552825871699858,
+    "accuracy": 0.4804804804804805,
+    "precision": 0.0,
+    "recall": 0.0,
+    "train_rows": 7288,
+    "calibration_rows": 274,
+    "test_rows": 333,
+    "test_positive_rate": 0.5195195195195195,
+    "dataset_start": "1980-01-02",
+    "dataset_end": "2023-01-10"
+  },
+  "status": "trained_not_approved_for_live"
+}

@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "instrument": "NZD/USD",
+  "timeframe": "1D",
+  "model_type": "logistic_regression",
+  "calibration": "platt_sigmoid",
+  "features": [
+    "ret_1",
+    "ret_5",
+    "ret_10",
+    "ret_20",
+    "vol_10",
+    "vol_20",
+    "range_pct",
+    "volume_change"
+  ],
+  "label": {
+    "type": "binary_direction",
+    "horizon_bars": 5,
+    "threshold": 0.005,
+    "positive": "forward_return >= +0.5%",
+    "negative": "forward_return <= -0.5%"
+  },
+  "scaler_mean": [
+    -5.4096791666203e-05,
+    0.00010376396898634912,
+    0.000373788177935973,
+    0.0010288639615691274,
+    0.007205397949041515,
+    0.007319018172128006,
+    0.012058281354590724,
+    0.23241737408987462
+  ],
+  "scaler_scale": [
+    0.008019632823312332,
+    0.017392393477695056,
+    0.02429290849911176,
+    0.03438946689734124,
+    0.0035421315447425328,
+    0.003245196815956698,
+    0.006922262420832779,
+    5.83365110175373
+  ],
+  "model_coef": [
+    0.005847202453631259,
+    -0.052392386523296405,
+    0.038492775943366725,
+    0.015563994718050467,
+    -0.004668703035154651,
+    0.0022430544360866897,
+    -0.0487054094140584,
+    0.008895465917291493
+  ],
+  "model_intercept": 0.00011327210966113943,
+  "calibration_coef": 0.0753454052868057,
+  "calibration_intercept": 0.09246357930594151,
+  "metrics": {
+    "roc_auc": 0.44394385721712004,
+    "pr_auc": 0.41513494358221203,
+    "brier_score": 0.25215944547288544,
+    "accuracy": 0.46648793565683644,
+    "precision": 0.46648793565683644,
+    "recall": 1.0,
+    "train_rows": 4613,
+    "calibration_rows": 363,
+    "test_rows": 373,
+    "test_positive_rate": 0.46648793565683644,
+    "dataset_start": "1994-02-01",
+    "dataset_end": "2023-01-10"
+  },
+  "status": "trained_not_approved_for_live"
+}

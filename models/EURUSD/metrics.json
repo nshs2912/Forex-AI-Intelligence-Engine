@@ -1,0 +1,14 @@
+{
+  "roc_auc": 0.5416892596454641,
+  "pr_auc": 0.5089474114839375,
+  "brier_score": 0.2553878907189242,
+  "accuracy": 0.46153846153846156,
+  "precision": 0.4432234432234432,
+  "recall": 0.8832116788321168,
+  "train_rows": 7072,
+  "calibration_rows": 294,
+  "test_rows": 312,
+  "test_positive_rate": 0.4391025641025641,
+  "dataset_start": "1980-01-02",
+  "dataset_end": "2023-01-10"
+}

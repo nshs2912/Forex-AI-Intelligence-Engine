@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "instrument": "AUD/USD",
+  "timeframe": "1D",
+  "model_type": "logistic_regression",
+  "calibration": "platt_sigmoid",
+  "features": [
+    "ret_1",
+    "ret_5",
+    "ret_10",
+    "ret_20",
+    "vol_10",
+    "vol_20",
+    "range_pct",
+    "volume_change"
+  ],
+  "label": {
+    "type": "binary_direction",
+    "horizon_bars": 5,
+    "threshold": 0.005,
+    "positive": "forward_return >= +0.5%",
+    "negative": "forward_return <= -0.5%"
+  },
+  "scaler_mean": [
+    -1.401226708184819e-05,
+    5.0781985081237956e-05,
+    0.00018843434517994853,
+    0.0003757936738439412,
+    0.006903035432712629,
+    0.007016273582310736,
+    0.011311299785029738,
+    236.41110845290723
+  ],
+  "scaler_scale": [
+    0.00792058074868495,
+    0.016590692236601354,
+    0.023179128480896885,
+    0.03278458393866752,
+    0.003960569250692141,
+    0.0036875751395455637,
+    0.006868420397354826,
+    4193.3624581512995
+  ],
+  "model_coef": [
+    -0.018628927115877148,
+    0.030929208357993933,
+    0.0028243400832767464,
+    0.03869055389217921,
+    0.05754895871995703,
+    -0.01756534135221392,
+    -0.03814941734570622,
+    -0.0030304646150169667
+  ],
+  "model_intercept": 6.91342823650632e-05,
+  "calibration_coef": -0.4323663564090598,
+  "calibration_intercept": 0.2823289691108588,
+  "metrics": {
+    "roc_auc": 0.48828940021746153,
+    "pr_auc": 0.47984535526142946,
+    "brier_score": 0.2602767735095994,
+    "accuracy": 0.46216216216216216,
+    "precision": 0.46216216216216216,
+    "recall": 1.0,
+    "train_rows": 4730,
+    "calibration_rows": 349,
+    "test_rows": 370,
+    "test_positive_rate": 0.46216216216216216,
+    "dataset_start": "1993-04-27",
+    "dataset_end": "2023-01-10"
+  },
+  "status": "trained_not_approved_for_live"
+}

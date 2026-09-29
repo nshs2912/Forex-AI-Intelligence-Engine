@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "instrument": "USD/JPY",
+  "timeframe": "1D",
+  "model_type": "logistic_regression",
+  "calibration": "platt_sigmoid",
+  "features": [
+    "ret_1",
+    "ret_5",
+    "ret_10",
+    "ret_20",
+    "vol_10",
+    "vol_20",
+    "range_pct",
+    "volume_change"
+  ],
+  "label": {
+    "type": "binary_direction",
+    "horizon_bars": 5,
+    "threshold": 0.005,
+    "positive": "forward_return >= +0.5%",
+    "negative": "forward_return <= -0.5%"
+  },
+  "scaler_mean": [
+    -0.00012553371840374686,
+    -0.00042231429446948495,
+    -0.0009215076839490024,
+    -0.0015128005861578724,
+    0.006294959245664907,
+    0.006428500843698571,
+    0.008415820846995126,
+    5.536114136407471
+  ],
+  "scaler_scale": [
+    0.006970797396439436,
+    0.015475034700403047,
+    0.021804371010304805,
+    0.03192335494872939,
+    0.0028865789014857223,
+    0.0025158919703087567,
+    0.006747356301619952,
+    146.03683029556984
+  ],
+  "model_coef": [
+    -0.025663426574779713,
+    -0.10652218396434156,
+    0.22945319944514733,
+    -0.011975759621348864,
+    -0.11225941431666384,
+    0.08367806478788255,
+    0.03291817119313554,
+    0.03073860784314657
+  ],
+  "model_intercept": 0.0002960035905151794,
+  "calibration_coef": -1.8770052694809278,
+  "calibration_intercept": -0.04532383564362971,
+  "metrics": {
+    "roc_auc": 0.449350845410628,
+    "pr_auc": 0.5641262278991197,
+    "brier_score": 0.27318639536886313,
+    "accuracy": 0.4,
+    "precision": 0.532608695652174,
+    "recall": 0.23671497584541062,
+    "train_rows": 6928,
+    "calibration_rows": 272,
+    "test_rows": 335,
+    "test_positive_rate": 0.6179104477611941,
+    "dataset_start": "1980-01-02",
+    "dataset_end": "2023-01-10"
+  },
+  "status": "trained_not_approved_for_live"
+}

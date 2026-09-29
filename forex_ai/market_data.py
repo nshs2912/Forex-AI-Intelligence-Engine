@@ -24,6 +24,7 @@ class MarketQuote:
     bid: float | None
     ask: float | None
     timestamp: datetime
+    received_at: datetime
     source: str
 
 
@@ -86,6 +87,7 @@ def fetch_live_quote(symbol: str, timeout: float = 10.0) -> MarketQuote:
         bid=bid,
         ask=ask,
         timestamp=timestamp,
+        received_at=datetime.now(timezone.utc),
         source="Twelve Data",
     )
 

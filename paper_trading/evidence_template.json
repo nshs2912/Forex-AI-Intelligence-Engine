@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "model_id": "",
+  "instrument": "",
+  "period_start": "",
+  "period_end": "",
+  "sample_count": 0,
+  "win_rate": null,
+  "profit_factor": null,
+  "max_drawdown": null,
+  "cost_model": {
+    "spread": null,
+    "slippage": null,
+    "commission": null
+  },
+  "validation_status": "pending",
+  "human_review": {
+    "reviewer": "",
+    "decision": "pending",
+    "reviewed_at": "",
+    "notes": ""
+  }
+}

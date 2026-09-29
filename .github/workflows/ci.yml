@@ -18,3 +18,14 @@ jobs:
       - run: pip install -r requirements.txt
       - run: python -m compileall -q forex_ai app.py scripts
       - run: python -m pytest -q
+      - name: Generate live-readiness report
+        run: python scripts/generate_readiness_report.py --output /tmp/live_readiness_report.json
+      - name: Verify governance state
+        run: |
+          python - <<'PY'
+          import json
+          report = json.load(open("/tmp/live_readiness_report.json", encoding="utf-8"))
+          assert report["system_status"] == "GOVERNED / NOT LIVE"
+          assert report["approval_policy"] == "evidence_and_human_approval_required"
+          print("Governance state verified")
+          PY

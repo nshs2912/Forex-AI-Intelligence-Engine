@@ -5,7 +5,11 @@ from zoneinfo import ZoneInfo
 from streamlit_autorefresh import st_autorefresh
 
 from forex_ai.glossary import MAJOR_PAIRS, PRECIOUS_METALS, TRADING_GLOSSARY
-from forex_ai.fundamental_info import FUNDAMENTAL_INDICATORS, fundamental_inputs_for
+from forex_ai.fundamental_info import (
+    FUNDAMENTAL_INDICATORS,
+    fundamental_inputs_for,
+    fundamental_sources_for,
+)
 from forex_ai.market_data import MarketDataError, fetch_daily_history, fetch_live_quote
 from forex_ai.ml_inference import infer_from_features, load_model
 from forex_ai.feature_engineering import build_features
@@ -170,6 +174,21 @@ with st.expander(f"Fundamental data & drivers — {instrument}", expanded=False)
         st.write(details["description"])
         st.caption(f"Dampak yang dipantau: {details['impact']}")
         st.caption(f"Status sumber: {details['source_status']}")
+
+    st.markdown("### 🔗 Fundamental Evidence Sources")
+    st.caption(
+        "Link berikut adalah sumber riset yang dapat dibuka langsung. "
+        "Dashboard belum mengklaim bahwa berita tersebut adalah feed live atau otomatis telah memengaruhi score."
+    )
+    for source in fundamental_sources_for(instrument):
+        label = f"{source['source_type'].upper()} · {source['currency']} · {source['description']}"
+        st.markdown(f"- **{source['evidence_id']}** — [{label}]({source['url']})")
+
+    st.info(
+        "Untuk berita terbaru, gunakan sumber berita yang tercantum dan verifikasi "
+        "waktu publikasi, relevansi terhadap instrument, serta sumber primer sebelum "
+        "memasukkannya sebagai evidence fundamental."
+    )
 
 # Start without a probability; live ML inference replaces this only when all
 # required daily features and a governed model artifact are available.

@@ -7,6 +7,7 @@ from streamlit_autorefresh import st_autorefresh
 from forex_ai.glossary import MAJOR_PAIRS, PRECIOUS_METALS, TRADING_GLOSSARY
 from forex_ai.fundamental_info import FUNDAMENTAL_INDICATORS, fundamental_inputs_for
 from forex_ai.market_data import MarketDataError, fetch_live_quote
+from forex_ai.ml_inference import load_model, model_path
 from forex_ai.probability import unavailable_result
 from forex_ai.risk_engine import build_trade_setup
 from forex_ai.signal_engine import combine_signals
@@ -113,6 +114,36 @@ with c2:
 with c3:
     ml = st.slider("ML Direction", -1.0, 1.0, 0.0, 0.05)
     st.caption("−1 bearish kuat · 0 netral · +1 bullish kuat")
+
+st.subheader("🤖 ML Model Intelligence")
+with st.expander(f"Trained model status — {instrument}", expanded=False):
+    try:
+        model_payload = load_model(instrument)
+        metrics = model_payload.get("metrics", {})
+        st.success(
+            f"Model artifact tersedia · {model_payload.get('model_type', 'unknown')} · "
+            f"Calibration: {model_payload.get('calibration', 'unknown')}"
+        )
+        x1, x2, x3, x4 = st.columns(4)
+        x1.metric("Model Timeframe", model_payload.get("timeframe", "N/A"))
+        x2.metric("Train Rows", f"{metrics.get('train_rows', 0):,}")
+        x3.metric("Test Rows", f"{metrics.get('test_rows', 0):,}")
+        x4.metric("ROC-AUC", f"{metrics.get('roc_auc', 0):.3f}")
+        st.caption(
+            f"Training period: {metrics.get('dataset_start', 'N/A')} → "
+            f"{metrics.get('dataset_end', 'N/A')} · "
+            f"Model status: {model_payload.get('status', 'unknown')}"
+        )
+        st.warning(
+            "Model sudah dilatih dan tersimpan, tetapi inference live belum diaktifkan "
+            "karena dashboard belum membangun feature vector OHLC yang sama dari data live. "
+            "ML Direction di bawah tetap manual agar tidak menghasilkan probability palsu."
+        )
+        st.caption(
+            "Feature model: " + ", ".join(model_payload.get("features", []))
+        )
+    except (FileNotFoundError, ValueError, KeyError) as exc:
+        st.warning(f"Model artifact belum tersedia untuk {instrument}: {exc}")
 
 st.subheader("📚 Fundamental Intelligence")
 fundamental_info = fundamental_inputs_for(instrument)

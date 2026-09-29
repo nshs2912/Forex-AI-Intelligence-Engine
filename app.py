@@ -130,7 +130,9 @@ with st.expander("📋 Supported instruments", expanded=False):
     st.markdown("**7 Major Currency Pairs**")
     st.write(", ".join(MAJOR_PAIRS))
     st.markdown("**Precious Metals**")
-    st.write(", ".join(PRECst.subheader("🛰️ Market Intelligence Monitor")
+    st.write(", ".join(PRECIOUS_METALS))
+
+st.subheader("🛰️ Market Intelligence Monitor")
 mi1, mi2, mi3, mi4 = st.columns(4)
 mi1.metric("Instrument", instrument)
 mi2.metric("Asset Class", asset_class)
@@ -171,7 +173,6 @@ with monitor_right:
         "reference data as an automated live fundamental/news feed."
     )
 
-IOUS_METALS))
 
 st.subheader("🧭 Signal Inputs")
 st.caption(

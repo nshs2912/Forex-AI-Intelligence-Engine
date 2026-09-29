@@ -412,6 +412,38 @@ with st.expander("Audit readiness details", expanded=False):
         "CI/training cannot silently promote a model."
     )
 
+st.subheader("📡 Intelligence Control Room")
+ic1, ic2, ic3, ic4 = st.columns(4)
+ic1.metric("Raw Direction", raw_action)
+ic2.metric("DSS Action", trade_action)
+ic3.metric("ML Status", ml_data_status.replace("_", " ").upper())
+ic4.metric("DSS Status", dss.status)
+
+with st.expander("🔎 Intelligence health & governance", expanded=False):
+    h1, h2 = st.columns(2)
+    with h1:
+        st.markdown("**Data & Model Health**")
+        st.write(
+            "Market data: "
+            + ("AVAILABLE" if live_quote is not None else "UNAVAILABLE / DEMO")
+        )
+        st.write(f"Quote freshness: {freshness if live_quote is not None else 'N/A'}")
+        st.write(f"Feature parity: {'PASS' if ml_inference is not None else 'NOT VERIFIED'}")
+        st.write(
+            "Calibrated inference: "
+            + ("AVAILABLE" if probability.calibrated else "UNAVAILABLE")
+        )
+    with h2:
+        st.markdown("**Governance Gates**")
+        st.write(f"Validation: {'PASS' if validation_passed else 'BLOCKED'}")
+        st.write(f"Risk controls: {'PASS' if risk_controls_ok else 'BLOCKED'}")
+        st.write("Paper evidence: BLOCKED / NOT REVIEWED")
+        st.write("Human live approval: NOT PRESENT")
+        st.caption(
+            "The monitor intentionally keeps BUY/SELL behind the DSS governance "
+            "gate when production evidence is incomplete."
+        )
+
 st.subheader("🛡️ Risk Plan")
 st.caption("Trade Decision Card — entry dan level risiko dihitung dari harga referensi dan parameter Risk Engine.")
 

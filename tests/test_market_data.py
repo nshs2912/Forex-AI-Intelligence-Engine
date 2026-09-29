@@ -37,3 +37,40 @@ def test_missing_api_key(monkeypatch):
 
     with pytest.raises(MarketDataError, match="TWELVE_DATA_API_KEY"):
         _api_key()
+
+
+def test_quote_age_and_freshness_boundaries():
+    from datetime import datetime, timedelta, timezone
+    from forex_ai.market_data import MarketQuote, quote_age_seconds, quote_freshness
+
+    now = datetime(2026, 9, 30, 0, 0, 0, tzinfo=timezone.utc)
+    quote = MarketQuote(
+        symbol="EUR/USD",
+        price=1.1,
+        bid=None,
+        ask=None,
+        timestamp=now - timedelta(seconds=45),
+        source="Twelve Data",
+        received_at=now,
+    )
+    assert quote_age_seconds(quote, now=now) == 45
+    assert quote_freshness(45) == "FRESH"
+    assert quote_freshness(61) == "AGING"
+    assert quote_freshness(301) == "STALE"
+
+
+def test_quote_age_does_not_go_negative_for_clock_skew():
+    from datetime import datetime, timedelta, timezone
+    from forex_ai.market_data import MarketQuote, quote_age_seconds
+
+    now = datetime.now(timezone.utc)
+    quote = MarketQuote(
+        symbol="EUR/USD",
+        price=1.1,
+        bid=None,
+        ask=None,
+        timestamp=now + timedelta(seconds=10),
+        source="Twelve Data",
+        received_at=now,
+    )
+    assert quote_age_seconds(quote, now=now) == 0

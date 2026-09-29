@@ -1,5 +1,6 @@
 """Streamlit dashboard for the Forex AI Intelligence Engine."""
 import streamlit as st
+import streamlit.components.v1 as components
 from datetime import timezone
 from zoneinfo import ZoneInfo
 from streamlit_autorefresh import st_autorefresh
@@ -80,13 +81,21 @@ with st.expander("📋 Supported instruments", expanded=False):
     st.markdown("**Precious Metals**")
     st.write(", ".join(PRECIOUS_METALS))
 
+st.subheader("🧭 Signal inputs")
+st.caption(
+    "Skala sinyal: +1 = bullish kuat, 0 = netral, −1 = bearish kuat. "
+    "Nilai di antaranya menunjukkan kekuatan arah; angka tidak berarti probabilitas."
+)
 c1, c2, c3 = st.columns(3)
 with c1:
     fundamental = st.slider("Fundamental", -1.0, 1.0, 0.0, 0.05)
+    st.caption("−1 bearish kuat · 0 netral · +1 bullish kuat")
 with c2:
     technical = st.slider("Technical", -1.0, 1.0, 0.0, 0.05)
+    st.caption("−1 bearish kuat · 0 netral · +1 bullish kuat")
 with c3:
-    ml = st.slider("ML direction", -1.0, 1.0, 0.0, 0.05)
+    ml = st.slider("ML Direction", -1.0, 1.0, 0.0, 0.05)
+    st.caption("−1 bearish kuat · 0 netral · +1 bullish kuat")
 
 signal = combine_signals(fundamental, technical, ml)
 
@@ -148,16 +157,41 @@ st.write(
     }
 )
 
-if data_mode == "Live":
-    local_timestamp = live_quote.received_at.astimezone(
-        ZoneInfo(timezone_options[display_timezone])
-    ) if live_quote else None
-    if local_timestamp:
-        st.caption(
-            f"Last data received: {local_timestamp:%d-%m-%Y %I:%M:%S %p} {display_timezone} "
-            f"(dashboard receipt time)"
-        )
-    st.caption(f"Automatic refresh: every {refresh} seconds. Provider quote time is retained separately for audit.")
+if data_mode == "Live" and live_quote:
+    received_ms = live_quote.received_at.timestamp() * 1000
+    tz_name = timezone_options[display_timezone]
+    components.html(
+        f"""
+        <div style="font-family: sans-serif; padding: 4px 0;">
+          <div id="clock" style="font-size: 1.05rem; font-weight: 600;"></div>
+          <div style="font-size: 0.82rem; color: #666;">
+            Jam berjalan • {display_timezone} • data diterima dashboard
+          </div>
+        </div>
+        <script>
+          const receivedMs = {received_ms};
+          const tz = {tz_name!r};
+          function tick() {{
+            const now = new Date(Date.now() + (Date.now() - receivedMs));
+            const parts = new Intl.DateTimeFormat("en-GB", {{
+              timeZone: tz,
+              day: "2-digit", month: "2-digit", year: "numeric",
+              hour: "2-digit", minute: "2-digit", second: "2-digit",
+              hour12: true
+            }}).formatToParts(now);
+            const get = (name) => parts.find(p => p.type === name)?.value || "";
+            document.getElementById("clock").textContent =
+              get("day") + "-" + get("month") + "-" + get("year") + " " +
+              get("hour") + ":" + get("minute") + ":" + get("second") + " " +
+              get("dayPeriod") + " {display_timezone}";
+          }}
+          tick();
+          setInterval(tick, 1000);
+        </script>
+        """,
+        height=58,
+    )
+    st.caption(f"Automatic market-data refresh: every {refresh} seconds. The clock above runs continuously between refreshes.")
 
 st.info(
     "Decision-support only. Live quotes are market-data snapshots, not execution prices. "

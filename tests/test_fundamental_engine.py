@@ -91,3 +91,28 @@ def test_news_failure_degrades_macro_score_instead_of_zeroing_it():
         result = fetch_fundamental_score("EUR/USD", now=now)
     assert result.status == "DEGRADED"
     assert result.score == result.macro_score
+
+
+def test_missing_macro_key_does_not_crash_news_fallback():
+    with patch("forex_ai.fundamental_engine._secret", return_value=""):
+        result = fetch_fundamental_score("EUR/USD")
+    assert result.status == "UNAVAILABLE"
+    assert result.score is None
+    assert result.news_status == "UNAVAILABLE"
+
+
+def test_news_provider_rate_limit_is_degraded_not_exception():
+    from forex_ai.fundamental_engine import fetch_live_news_score
+
+    with patch(
+        "forex_ai.fundamental_engine._fetch_country_news",
+        side_effect=__import__("urllib.error", fromlist=["HTTPError"]).HTTPError(
+            "https://example.test", 429, "Too Many Requests", {}, None
+        ),
+    ):
+        score, status, count, evidence, message = fetch_live_news_score("EUR/USD")
+    assert score is None
+    assert status == "UNAVAILABLE"
+    assert count == 0
+    assert evidence == ()
+    assert "rate limit" in message.lower() or "unavailable" in message.lower()

@@ -186,12 +186,12 @@ with monitor_left:
 
 with monitor_right:
     st.markdown("**Evidence & Feed Coverage**")
-    st.write("Fundamental score: **UNAVAILABLE — no validated live macro/news feed**")
+    if fundamental_result is not None and fundamental_result.score is not None:\n        st.write(f"Fundamental score: **{fundamental_result.score:+.2f} · {fundamental_result.status}**")\n    else:\n        st.write("Fundamental score: **N/A — no validated live macro/news evidence**")
     if technical_result is not None and technical is not None:
         st.write(f"Technical score: **{technical:+.2f} · LIVE**")
     else:
         st.write("Technical score: **UNAVAILABLE**")
-    st.write("News feed: **reference links only**")
+    st.write("Macro feed: **LIVE when Trading Economics credentials are configured**")
     st.write("Economic calendar: **reference link only**")
     st.write("ML inference: **live only when completed daily features are available**")
     st.caption(

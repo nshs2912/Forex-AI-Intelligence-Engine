@@ -1,4 +1,4 @@
-"""Validated live fundamental intelligence from a Trading Economics calendar feed.
+"""Validated live fundamental intelligence from Trading Economics macro + news feeds.
 
 The engine deliberately separates provider availability from score calculation.
 No API credential means UNAVAILABLE; missing events are never converted to zero.
@@ -21,7 +21,7 @@ try:
 except ImportError:  # pragma: no cover
     st = None
 
-TE_URL = "https://api.tradingeconomics.com/calendar/country"
+TE_URL = "https://api.tradingeconomics.com/calendar/country"\nNEWS_URL = "https://api.tradingeconomics.com/news/country"
 PAIR_CURRENCIES = {
     "EUR/USD": ("Euro Area", "United States"),
     "USD/JPY": ("United States", "Japan"),
@@ -199,47 +199,4 @@ def _currency_score(
     evidence = [item[2] for item in sorted(weighted, key=lambda x: x[1], reverse=True)]
     return _clamp(value), len(weighted), fresh, evidence
 
-def fetch_fundamental_score(
-    instrument: str,
-    *,
-    lookback_days: int = 7,
-    timeout: float = 10.0,
-    now: datetime | None = None,
-) -> FundamentalResult:
-    """Fetch recent macro releases and calculate a pair-relative score."""
-    if instrument not in PAIR_CURRENCIES:
-        return FundamentalResult(
-            None, None, None, "UNAVAILABLE", "Trading Economics",
-            0, 0, {}, (), "Instrument has no mapped macro currency pair."
-        )
-    current = now or datetime.now(timezone.utc)
-    start = current - timedelta(days=max(1, lookback_days))
-    countries = PAIR_CURRENCIES[instrument]
-    try:
-        base_events = _fetch_country(countries[0], start, current, timeout)
-        quote_events = _fetch_country(countries[1], start, current, timeout)
-    except FundamentalDataError as exc:
-        return FundamentalResult(
-            None, None, None, "UNAVAILABLE", "Trading Economics",
-            0, 0, {}, (), str(exc)
-        )
-
-    base, base_count, base_fresh, base_evidence = _currency_score(base_events, current)
-    quote, quote_count, quote_fresh, quote_evidence = _currency_score(quote_events, current)
-    if base is None or quote is None:
-        return FundamentalResult(
-            None, base, quote, "DEGRADED", "Trading Economics",
-            base_count + quote_count, base_fresh + quote_fresh,
-            {"base": base or 0.0, "quote": quote or 0.0},
-            tuple(base_evidence + quote_evidence),
-            "Insufficient directional macro evidence for both currencies."
-        )
-
-    score = _clamp(base - quote)
-    return FundamentalResult(
-        score, base, quote, "LIVE", "Trading Economics",
-        base_count + quote_count, base_fresh + quote_fresh,
-        {"base": base, "quote": quote, "relative": score},
-        tuple(base_evidence + quote_evidence),
-        "Live macro surprise score from completed economic releases."
-    )
+def fetch_fundamental_score(\n    instrument: str,\n    *,\n    lookback_days: int = 7,\n    timeout: float = 10.0,\n    now: datetime | None = None,\n) -> FundamentalResult:\n    """Fetch recent macro releases and live news, then calculate a pair-relative score."""\n    if instrument not in PAIR_CURRENCIES:\n        return FundamentalResult(\n            None, None, None, "UNAVAILABLE", "Trading Economics", 0, 0, {}, (),\n            "Instrument has no mapped macro/news currency pair.", None, None, "UNAVAILABLE", 0\n        )\n    current = now or datetime.now(timezone.utc)\n    start = current - timedelta(days=max(1, lookback_days))\n    countries = PAIR_CURRENCIES[instrument]\n    try:\n        base_events = _fetch_country(countries[0], start, current, timeout)\n        quote_events = _fetch_country(countries[1], start, current, timeout)\n    except FundamentalDataError as exc:\n        news_score, news_status, news_count, news_evidence, news_message = fetch_live_news_score(\n            instrument, lookback_days=min(lookback_days, 3), timeout=timeout, now=current\n        )\n        if news_score is not None:\n            return FundamentalResult(\n                news_score, None, None, "DEGRADED", "Trading Economics", news_count, 0,\n                {"macro": 0.0, "news": news_score}, tuple(news_evidence),\n                f"Macro unavailable; news-only evidence. {exc}", None, news_score, news_status, news_count\n            )\n        return FundamentalResult(\n            None, None, None, "UNAVAILABLE", "Trading Economics", 0, 0, {}, tuple(news_evidence),\n            str(exc), None, None, news_status, news_count\n        )\n\n    base, base_count, base_fresh, base_evidence = _currency_score(base_events, current)\n    quote, quote_count, quote_fresh, quote_evidence = _currency_score(quote_events, current)\n    macro_score = _clamp(base - quote) if base is not None and quote is not None else None\n\n    news_score, news_status, news_count, news_evidence, news_message = fetch_live_news_score(\n        instrument, lookback_days=min(lookback_days, 3), timeout=timeout, now=current\n    )\n    all_evidence = base_evidence + quote_evidence + list(news_evidence)\n    macro_count = base_count + quote_count\n    fresh_count = base_fresh + quote_fresh\n\n    if macro_score is not None and news_score is not None:\n        score = _clamp(0.70 * macro_score + 0.30 * news_score)\n        status = "LIVE"\n        message = "Live macro + validated live news intelligence."\n    elif macro_score is not None:\n        score = macro_score\n        status = "DEGRADED"\n        message = f"Live macro intelligence only. {news_message}"\n    elif news_score is not None:\n        score = news_score\n        status = "DEGRADED"\n        message = f"Validated live news intelligence only. Macro evidence unavailable."\n    else:\n        score = None\n        status = "DEGRADED" if macro_count or news_count else "UNAVAILABLE"\n        message = "Insufficient validated macro/news evidence."\n\n    return FundamentalResult(\n        score, base, quote, status, "Trading Economics", macro_count + news_count,\n        fresh_count,\n        {"macro": macro_score if macro_score is not None else 0.0,\n         "news": news_score if news_score is not None else 0.0,\n         "combined": score if score is not None else 0.0},\n        tuple(all_evidence), message, macro_score, news_score, news_status, news_count\n    )\n

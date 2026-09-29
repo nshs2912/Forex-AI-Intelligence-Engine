@@ -34,6 +34,16 @@ st.caption("Market state + Fundamental Evidence + ML Intelligence + DSS Governan
 
 INSTRUMENTS = list(MAJOR_PAIRS) + list(PRECIOUS_METALS)
 
+
+@st.cache_data(ttl=30, show_spinner=False)
+def _cached_live_quote(symbol: str):
+    return fetch_live_quote(symbol)
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _cached_daily_history(symbol: str):
+    return fetch_daily_history(symbol, outputsize=100)
+
 with st.sidebar:
     st.header("Trade setup")
     data_mode = st.radio("Market data", ["Live", "Demo"], horizontal=True)
@@ -82,7 +92,7 @@ age_seconds = 0.0
 freshness = "N/A"
 if data_mode == "Live":
     try:
-        live_quote = fetch_live_quote(instrument)
+        live_quote = _cached_live_quote(instrument)
         entry = live_quote.price
         age_seconds = quote_age_seconds(live_quote)
         freshness = quote_freshness(age_seconds)
@@ -132,14 +142,14 @@ if data_mode == "Live":
             )
     except MarketDataError as exc:
         st.error(f"Live market data unavailable: {exc}")
-        st.warning("Switch to Demo mode or configure TWELVE_DATA_API_KEY.")
+        st.warning("Twelve Data sedang rate-limited atau belum tersedia. Refresh dibatasi 30 detik; gunakan Demo mode sementara jika 429 berlanjut.")
 
 # Calculate technical intelligence before rendering the monitor so all
 # dashboard sections use the same live completed-bar snapshot.
 history = None
 if data_mode == "Live" and live_quote is not None:
     try:
-        history = fetch_daily_history(instrument, outputsize=100)
+        history = _cached_daily_history(instrument)
         today_utc = live_quote.received_at.date()
         history = history[history["date"].dt.date < today_utc].copy()
         technical_result = calculate_technical_score(history)

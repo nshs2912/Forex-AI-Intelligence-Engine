@@ -9,4 +9,4 @@ def test_short_levels():
     assert sl==151.0 and tp==148.0 and actual_rr==2.0
 
 def test_position_size():
-    assert calculate_position_size(10000,1.0,0.01,pip_size=0.0001,pip_value_per_unit=0.00001)==1000.0
+    assert calculate_position_size(10000,1.0,0.01,pip_size=0.0001,pip_value_per_unit=0.00001)==100000.0

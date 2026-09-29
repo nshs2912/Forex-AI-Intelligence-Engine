@@ -213,13 +213,17 @@ with monitor_right:
         st.write(f"Technical score: **{technical:+.2f} · LIVE**")
     else:
         st.write("Technical score: **UNAVAILABLE**")
-    st.write("Macro feed: **LIVE when Trading Economics credentials are configured**")
-    st.write("Economic calendar: **reference link only**")
+    st.write("Macro feed: **Trading Economics — live when credentials are configured**")
+    if fundamental_result is not None:
+        st.write(f"News feed: **Trading Economics — {fundamental_result.news_status} · {fundamental_result.news_evidence_count} validated headlines**")
+    else:
+        st.write("News feed: **N/A in Demo mode**")
+    st.write("Economic calendar: **live macro evidence when configured**")
     st.write("ML inference: **live only when completed daily features are available**")
     st.caption(
-        "Technical score is computed from completed OHLC bars. Fundamental remains "
-        "UNAVAILABLE until a validated macro/news provider is connected; reference "
-        "links are never treated as live evidence."
+        "Technical score is computed from completed OHLC bars. Fundamental combines "
+        "validated Trading Economics macro releases and live news when both are available; "
+        "reference links are never treated as live evidence."
     )
 
 
@@ -284,8 +288,12 @@ st.subheader("📚 Fundamental Intelligence")
 fundamental_info = fundamental_inputs_for(instrument)
 with st.expander(f"Fundamental data & drivers — {instrument}", expanded=False):
     if fundamental_result is not None and fundamental_result.status == "LIVE":
-        st.success(f"Status: LIVE | Provider: {fundamental_result.provider} | Evidence: {fundamental_result.evidence_count}")
-        st.write(f"Base: {fundamental_result.base_currency_score:+.2f} | Quote: {fundamental_result.quote_currency_score:+.2f} | Relative: {fundamental_result.score:+.2f}")
+        st.success(f"Status: {fundamental_result.status} | Provider: {fundamental_result.provider} | Evidence: {fundamental_result.evidence_count}")
+        st.write(f"Macro: {fundamental_result.macro_score:+.2f}" if fundamental_result.macro_score is not None else "Macro: N/A")
+        st.write(f"News: {fundamental_result.news_score:+.2f} | News status: {fundamental_result.news_status} | Validated headlines: {fundamental_result.news_evidence_count}")
+        st.write(f"Base: {fundamental_result.base_currency_score:+.2f}" if fundamental_result.base_currency_score is not None else "Base: N/A")
+        st.write(f"Quote: {fundamental_result.quote_currency_score:+.2f}" if fundamental_result.quote_currency_score is not None else "Quote: N/A")
+        st.write(f"Combined Fundamental: {fundamental_result.score:+.2f}" if fundamental_result.score is not None else "Combined Fundamental: N/A")
     elif fundamental_result is not None:
         st.warning(f"Status: {fundamental_result.status} | {fundamental_result.message}")
     else:
@@ -300,18 +308,17 @@ with st.expander(f"Fundamental data & drivers — {instrument}", expanded=False)
 
     st.markdown("### 🔗 Fundamental Evidence Sources")
     st.caption(
-        "Link berikut adalah sumber riset yang dapat dibuka langsung. "
-        "Dashboard belum mengklaim bahwa berita tersebut adalah feed live atau otomatis telah memengaruhi score."
+        "Link berikut adalah sumber riset. Live macro/news evidence untuk score berasal "
+        "dari Trading Economics API ketika credentials tersedia; reference links tidak menjadi score."
     )
     for source in fundamental_sources_for(instrument):
         label = f"{source['source_type'].upper()} · {source['currency']} · {source['description']}"
         st.markdown(f"- **{source['evidence_id']}** — [{label}]({source['url']})")
 
-    st.info(
-        "Untuk berita terbaru, gunakan sumber berita yang tercantum dan verifikasi "
-        "waktu publikasi, relevansi terhadap instrument, serta sumber primer sebelum "
-        "memasukkannya sebagai evidence fundamental."
-    )
+    if fundamental_result is not None and fundamental_result.news_evidence_count:
+        st.success("Validated live news evidence sudah ikut dalam Fundamental Score ketika News status = LIVE.")
+    else:
+        st.info("Belum ada validated live news evidence yang directional; score tidak menganggap ketiadaan news sebagai netral.")
 
 # Start without a probability; live ML inference replaces this only when all
 # required daily features and a governed model artifact are available.
@@ -363,7 +370,7 @@ else:
 
 if fundamental is None:
     st.info(
-        "Fundamental Score = N/A. Repository belum terhubung ke validated live macro/news provider; "
+        "Fundamental Score = N/A. Trading Economics macro/news belum menghasilkan evidence directional yang tervalidasi; "
         "reference links tidak digunakan sebagai score."
     )
 

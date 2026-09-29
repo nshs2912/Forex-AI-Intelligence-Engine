@@ -24,7 +24,7 @@ def test_all_live_gates_are_required():
         model_status="approved_for_live",
         calibrated=True, data_fresh=True, feature_parity=True,
         model_metrics_available=True, risk_controls_ok=True,
-        validation_passed=True, approval_record_valid=True,
+        validation_passed=True, paper_evidence_passed=True, approval_record_valid=True,
     )
     assert result.ready is True
 

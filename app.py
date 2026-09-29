@@ -4,6 +4,7 @@ from streamlit_autorefresh import st_autorefresh
 
 from forex_ai.glossary import MAJOR_PAIRS, PRECIOUS_METALS, TRADING_GLOSSARY
 from forex_ai.market_data import MarketDataError, fetch_live_quote
+from forex_ai.probability import unavailable_result
 from forex_ai.risk_engine import build_trade_setup
 from forex_ai.signal_engine import combine_signals
 
@@ -80,13 +81,12 @@ with c3:
 
 signal = combine_signals(fundamental, technical, ml)
 
-# The engine score is mapped to a directional probability-like value for display.
-# It is not a calibrated statistical probability unless a calibrated ML model is supplied.
-bullish_probability = 0.5 + (signal.score * 0.5)
-bearish_probability = 1.0 - bullish_probability
-if bullish_probability >= 0.55:
+# Do not convert the ensemble score into a fake probability.
+# A probability is shown only when a separately trained/calibrated model is supplied.
+probability = unavailable_result()
+if signal.direction == "bullish":
     trade_action = "BUY"
-elif bearish_probability >= 0.55:
+elif signal.direction == "bearish":
     trade_action = "SELL"
 else:
     trade_action = "WAIT"
@@ -105,8 +105,12 @@ st.subheader("🎯 AI Market Signal")
 a0, a1, a2, a3 = st.columns(4)
 a0.metric("Position", trade_action)
 a1.metric("Reference Price", f"{entry:.6f}")
-a2.metric("Bullish", f"{bullish_probability:.1%}")
-a3.metric("Bearish", f"{bearish_probability:.1%}")
+a2.metric("Bullish", "N/A")
+a3.metric("Bearish", "N/A")
+st.caption(
+    "Calibrated probability: not available. The current engine exposes a directional score; "
+    "a held-out calibration model is required before displaying a true probability."
+)
 
 m0, m1, m2, m3, m4 = st.columns(5)
 m0.metric("Asset Class", asset_class)
@@ -116,7 +120,7 @@ m3.metric("Take Profit", f"{setup.take_profit:.6f}")
 m4.metric("R:R", f"{setup.risk_reward:.2f}")
 st.caption(
     f"Signal confidence: {signal.confidence:.0%} · "
-    "Bullish/Bearish values are directional score mappings, not calibrated probabilities."
+    f"Probability status: {probability.status}"
 )
 
 st.subheader("Risk plan")

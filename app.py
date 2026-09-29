@@ -137,16 +137,19 @@ with st.expander(f"Trained model status — {instrument}", expanded=False):
             f"{metrics.get('dataset_end', 'N/A')} · "
             f"Model status: {model_payload.get('status', 'unknown')}"
         )
-        validation = validate_model_artifact(
-            f"models/{instrument.replace("/", "")}/model.json"
-        )
-        if validation.passed:
-            st.success("Automated live-readiness gates: PASS")
-        else:
-            st.warning(
-                "Automated live-readiness gates: BLOCKED — "
-                + ", ".join(validation.reasons)
+        try:
+            validation = validate_model_artifact(
+                f"models/{instrument.replace('/', '')}/model.json"
             )
+            if validation.passed:
+                st.success("Automated live-readiness gates: PASS")
+            else:
+                st.warning(
+                    "Automated live-readiness gates: BLOCKED — "
+                    + ", ".join(validation.reasons)
+                )
+        except (FileNotFoundError, ValueError, KeyError, OSError) as exc:
+            st.warning(f"Automated live-readiness unavailable: {exc}")
         st.caption(
             "Feature model: " + ", ".join(model_payload.get("features", []))
         )

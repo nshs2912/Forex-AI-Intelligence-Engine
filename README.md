@@ -57,3 +57,12 @@ When Live mode is selected, the dashboard:
 The provider documents WebSocket streaming for lower-latency tick delivery; the current implementation intentionally starts with REST quote snapshots for deployment simplicity. citeturn0search3turn0search4
 
 A live market-data quote is not a broker execution price. Spread, slippage, contract specifications, latency and broker constraints must still be validated before any trading decision.
+
+
+## Decision-support governance
+
+The dashboard implements a governed DSS pattern rather than an autonomous trading executor. It exposes data provenance, model status, calibrated probability status, feature parity, validation metrics and risk-control readiness. See `DSS_GOVERNANCE.md`.
+
+The current trained models remain `trained_not_approved_for_live`. Live inference is only attempted when the selected major pair has a model artifact and the required completed daily OHLC features can be reconstructed consistently with training.
+
+A DSS readiness status of `GOVERNED / NOT LIVE` is intentional when any production gate is incomplete. This prevents an unvalidated model from being presented as a production trading signal.

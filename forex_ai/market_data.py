@@ -35,6 +35,27 @@ class MarketDataError(RuntimeError):
     """Raised when live market data cannot be retrieved."""
 
 
+def quote_age_seconds(
+    quote: MarketQuote, *, now: datetime | None = None
+) -> float:
+    """Return provider-quote age in seconds, clamped at zero."""
+    reference = now or datetime.now(timezone.utc)
+    timestamp = quote.timestamp
+    if timestamp.tzinfo is None:
+        timestamp = timestamp.replace(tzinfo=timezone.utc)
+    age = (reference - timestamp.astimezone(timezone.utc)).total_seconds()
+    return max(0.0, age)
+
+
+def quote_freshness(age_seconds: float) -> str:
+    """Classify a quote snapshot for dashboard observability."""
+    if age_seconds <= 60:
+        return "FRESH"
+    if age_seconds <= 300:
+        return "AGING"
+    return "STALE"
+
+
 def _api_key() -> str:
     key = ""
     if st is not None:

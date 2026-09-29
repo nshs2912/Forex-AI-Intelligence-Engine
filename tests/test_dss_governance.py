@@ -5,7 +5,7 @@ def test_unapproved_model_is_not_live_ready():
         model_status="trained_not_approved_for_live",
         calibrated=True, data_fresh=True, feature_parity=True,
         model_metrics_available=True, risk_controls_ok=True,
-        validation_passed=True, approval_record_valid=True,
+        validation_passed=True, paper_evidence_passed=True, approval_record_valid=True,
     )
     assert result.ready is False
     assert result.status == "GOVERNED / NOT LIVE"
@@ -33,6 +33,17 @@ def test_approval_without_validation_is_blocked():
         model_status="approved_for_live",
         calibrated=True, data_fresh=True, feature_parity=True,
         model_metrics_available=True, risk_controls_ok=True,
-        validation_passed=False, approval_record_valid=True,
+        validation_passed=False, paper_evidence_passed=True, approval_record_valid=True,
+    )
+    assert result.ready is False
+
+
+def test_live_approval_requires_paper_evidence():
+    result = assess_dss(
+        model_status="approved_for_live",
+        calibrated=True, data_fresh=True, feature_parity=True,
+        model_metrics_available=True, risk_controls_ok=True,
+        validation_passed=True, paper_evidence_passed=False,
+        approval_record_valid=True,
     )
     assert result.ready is False

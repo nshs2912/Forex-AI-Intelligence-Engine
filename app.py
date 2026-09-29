@@ -250,6 +250,7 @@ dss = assess_dss(
     ),
     risk_controls_ok=risk_controls_ok,
     validation_passed=validation_passed,
+    paper_evidence_passed=False,
     approval_record_valid=False,
 )
 

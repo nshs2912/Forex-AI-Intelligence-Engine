@@ -78,6 +78,8 @@ fundamental = None
 technical = None
 technical_result = None
 technical_data_status = "unavailable"
+age_seconds = 0.0
+freshness = "N/A"
 if data_mode == "Live":
     try:
         live_quote = fetch_live_quote(instrument)
@@ -149,10 +151,23 @@ if data_mode == "Live" and live_quote is not None:
     except (MarketDataError, ValueError, KeyError) as exc:
         technical_data_status = f"unavailable: {exc}"
 
-# Fundamental intelligence is independent of price quote freshness.\nfundamental_result = None
+# Fundamental intelligence is independent of price quote freshness.
+fundamental_result = None
 fundamental = None
 
-if data_mode == "Live":\n    @st.cache_data(ttl=300, show_spinner=False)\n    def _cached_fundamental_score(symbol: str):\n        return fetch_fundamental_score(symbol)\n\n    fundamental_result = _cached_fundamental_score(instrument)\n    if fundamental_result.status == "LIVE":\n        fundamental = fundamental_result.score\n    else:\n        fundamental = None\nelse:\n    fundamental_result = None\n\nwith st.expander("📋 Supported instruments", expanded=False):
+if data_mode == "Live":
+    @st.cache_data(ttl=300, show_spinner=False)
+    def _cached_fundamental_score(symbol: str):
+        return fetch_fundamental_score(symbol)
+
+    fundamental_result = _cached_fundamental_score(instrument)
+    if fundamental_result.status == "LIVE":
+        fundamental = fundamental_result.score
+    else:
+        fundamental = None
+else:
+    fundamental_result = None
+\nwith st.expander("📋 Supported instruments", expanded=False):
     st.markdown("**7 Major Currency Pairs**")
     st.write(", ".join(MAJOR_PAIRS))
     st.markdown("**Precious Metals**")
@@ -301,6 +316,7 @@ with st.expander(f"Fundamental data & drivers — {instrument}", expanded=False)
 # required daily features and a governed model artifact are available.
 probability = unavailable_result()
 ml_inference = None
+ml = None
 ml_data_status = "not_attempted"
 if data_mode == "Live" and instrument in MAJOR_PAIRS and live_quote is not None and history is not None:
     try:

@@ -36,7 +36,6 @@ SYMBOLS = {
     "USD/CHF": "USD_CHF.csv",
     "USD/CAD": "USD_CAD.csv",
     "NZD/USD": "NZD_USD.csv",
-    "XAU/USD": "XAU_USD.csv",
 }
 FEATURES = [
     "ret_1",

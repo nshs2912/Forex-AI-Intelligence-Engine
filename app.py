@@ -149,15 +149,28 @@ signal_class = {
     "WAIT": "🟡 WAIT",
 }[trade_action]
 
+score = signal.score
+if score > 0.60:
+    score_description = "Bullish kuat"
+elif score > 0.15:
+    score_description = "Bullish"
+elif score < -0.60:
+    score_description = "Bearish kuat"
+elif score < -0.15:
+    score_description = "Bearish"
+else:
+    score_description = "Netral"
+
 card = st.container(border=True)
 with card:
     st.markdown(f"### {signal_class} · {instrument}")
     st.caption(
-        f"Asset class: {asset_class} · Data mode: {data_mode} · "
-        f"Signal: {signal.direction.title()} · Score: {signal.score:+.2f}"
+        f"Asset class: {asset_class} · Data mode: {data_mode}"
     )
 
-    p1, p2, p3, p4 = st.columns(4)
+    p0, p1, p2, p3, p4 = st.columns(5)
+    p0.metric("Signal Score", f"{score:+.2f}")
+    p0.caption(score_description)
     p1.metric("Entry Price", f"{setup.entry:.6f}")
     p2.metric("Stop Loss", f"{setup.stop_loss:.6f}")
     p3.metric("Take Profit", f"{setup.take_profit:.6f}")
@@ -168,8 +181,10 @@ with card:
     p6.metric("Position Units", f"{setup.position_units:,.2f}")
     p7.metric("Risk per Trade", f"{risk_pct:.1f}%")
 
+    st.caption("Interpretasi score: −1.00 = bearish kuat · −0.15 = batas bearish · 0.00 = netral · +0.15 = batas bullish · +1.00 = bullish kuat.")
+
     if trade_action == "WAIT":
-        st.warning("WAIT — belum ada arah BUY/SELL yang cukup kuat. Risk levels ditampilkan sebagai simulasi, bukan entry recommendation.")
+        st.warning("WAIT — score berada di zona netral (−0.15 sampai +0.15), sehingga belum ada arah BUY/SELL yang cukup kuat. Risk levels ditampilkan sebagai simulasi.")
     else:
         st.info(f"{trade_action} — Entry Price menggunakan harga referensi saat ini: {setup.entry:.6f}.")
 

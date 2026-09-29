@@ -259,7 +259,17 @@ if data_mode == "Live" and live_quote:
     )
     st.caption(f"Automatic market-data refresh: every {refresh} seconds. The clock above runs continuously between refreshes.")
 
-st.info(
-    "Decision-support only. Live quotes are market-data snapshots, not execution prices. "
-    "Validate spread, slippage, contract specifications and broker constraints before use."
+st.divider()
+st.caption(
+    "⚠️ **Disclaimer:** Forex AI Intelligence Engine merupakan perangkat lunak "
+    "untuk riset, analisis, simulasi, dan decision-support. Informasi, score, "
+    "signal, Risk Plan, SL/TP, dan output ML bukan merupakan nasihat keuangan, "
+    "rekomendasi investasi, atau jaminan keuntungan. Harga live merupakan snapshot "
+    "data pasar dan bukan harga eksekusi broker. Pengguna bertanggung jawab atas "
+    "keputusan dan risiko yang timbul dari penggunaannya."
+)
+st.caption(
+    "© 2026 **NSHS Purworejo** — Forex AI Intelligence Engine. "
+    "Dikembangkan untuk penelitian dan pengembangan teknologi AI, data intelligence, "
+    "dan decision-support."
 )

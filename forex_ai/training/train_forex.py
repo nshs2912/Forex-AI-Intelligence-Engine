@@ -1,10 +1,8 @@
 """Train a time-ordered, calibrated binary Forex direction model.
 
-The training job downloads a public daily OHLC dataset, builds lagged features,
-keeps chronological train/calibration/test periods disjoint, fits logistic
-regression, then fits a separate Platt sigmoid calibrator on the calibration
-period. Model parameters are exported as JSON so the dashboard does not need
-pickle/joblib artifacts.
+Training and inference share the same OHLC feature contract. Artifacts remain
+trained_not_approved_for_live until independent validation, paper evidence,
+and explicit human approval are present.
 """
 from __future__ import annotations
 
@@ -58,8 +56,6 @@ def load_data(symbol: str) -> pd.DataFrame:
     if symbol not in SYMBOLS:
         raise ValueError(f"unsupported symbol: {symbol}")
 
-    # Live training mode uses the same provider family as dashboard inference.
-    # It is opt-in so ordinary CI remains deterministic without secrets.
     if os.getenv("FOREX_TRAINING_DATA_SOURCE", "").strip().lower() == "live":
         frame = fetch_daily_history(symbol, outputsize=5000)
         frame["tick_volume"] = pd.to_numeric(
@@ -85,3 +81,132 @@ def load_data(symbol: str) -> pd.DataFrame:
     df.attrs["data_source"] = "nktcodes/Forex-Data"
     return df.dropna(subset=["open", "high", "low", "close"]).copy()
 
+
+def make_dataset(
+    df: pd.DataFrame, *, horizon: int = 5, threshold: float = 0.005
+) -> pd.DataFrame:
+    """Build a leakage-safe labeled dataset from completed OHLC bars."""
+    if horizon < 1:
+        raise ValueError("horizon must be >= 1")
+    if threshold <= 0:
+        raise ValueError("threshold must be > 0")
+
+    out = build_features(df)
+    forward_return = out["close"].shift(-horizon) / out["close"] - 1.0
+    out["label"] = np.where(
+        forward_return >= threshold,
+        1,
+        np.where(forward_return <= -threshold, 0, np.nan),
+    )
+    out = out.dropna(subset=FEATURES + ["label"]).copy()
+    out["label"] = out["label"].astype(int)
+    return out
+
+
+def _periods(
+    df: pd.DataFrame,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    train = df[df["date"] < "2019-01-01"]
+    calibration = df[
+        (df["date"] >= "2019-01-01") & (df["date"] < "2021-01-01")
+    ]
+    test = df[df["date"] >= "2021-01-01"]
+    if min(len(train), len(calibration), len(test)) < 100:
+        raise ValueError("insufficient rows in chronological train/calibration/test periods")
+    return train, calibration, test
+
+
+def train_symbol(symbol: str, output_dir: Path) -> dict:
+    raw = load_data(symbol)
+    dataset = make_dataset(raw)
+    train, calibration, test = _periods(dataset)
+
+    scaler = StandardScaler().fit(train[FEATURES])
+    x_train = scaler.transform(train[FEATURES])
+    x_cal = scaler.transform(calibration[FEATURES])
+    x_test = scaler.transform(test[FEATURES])
+
+    model = LogisticRegression(max_iter=2000, class_weight="balanced", random_state=42)
+    model.fit(x_train, train["label"])
+
+    cal_score = model.decision_function(x_cal).reshape(-1, 1)
+    calibrator = LogisticRegression(max_iter=2000, random_state=42)
+    calibrator.fit(cal_score, calibration["label"])
+
+    test_score = model.decision_function(x_test)
+    probability = _sigmoid(
+        calibrator.intercept_[0] + calibrator.coef_[0, 0] * test_score
+    )
+    prediction = (probability >= 0.5).astype(int)
+    y_test = test["label"].to_numpy()
+
+    metrics = {
+        "roc_auc": float(roc_auc_score(y_test, probability)),
+        "pr_auc": float(average_precision_score(y_test, probability)),
+        "brier_score": float(brier_score_loss(y_test, probability)),
+        "accuracy": float(accuracy_score(y_test, prediction)),
+        "precision": float(precision_score(y_test, prediction, zero_division=0)),
+        "recall": float(recall_score(y_test, prediction, zero_division=0)),
+        "train_rows": int(len(train)),
+        "calibration_rows": int(len(calibration)),
+        "test_rows": int(len(test)),
+        "test_positive_rate": float(y_test.mean()),
+        "dataset_start": str(raw["date"].min().date()),
+        "dataset_end": str(raw["date"].max().date()),
+        "data_source": str(raw.attrs.get("data_source", "unknown")),
+        "horizon_bars": 5,
+        "threshold": 0.005,
+    }
+
+    model_payload = {
+        "schema_version": 1,
+        "instrument": symbol,
+        "timeframe": "1D",
+        "model_type": "logistic_regression",
+        "calibration": "platt_sigmoid",
+        "features": list(FEATURES),
+        "label": {
+            "type": "binary_direction",
+            "horizon_bars": 5,
+            "threshold": 0.005,
+            "positive": "forward_return >= +0.5%",
+            "negative": "forward_return <= -0.5%",
+            "neutral_moves_excluded": True,
+        },
+        "scaler_mean": scaler.mean_.tolist(),
+        "scaler_scale": scaler.scale_.tolist(),
+        "model_coef": model.coef_[0].tolist(),
+        "model_intercept": float(model.intercept_[0]),
+        "calibration_coef": float(calibrator.coef_[0, 0]),
+        "calibration_intercept": float(calibrator.intercept_[0]),
+        "metrics": metrics,
+        "status": "trained_not_approved_for_live",
+    }
+
+    symbol_dir = output_dir / symbol.replace("/", "")
+    symbol_dir.mkdir(parents=True, exist_ok=True)
+    (symbol_dir / "model.json").write_text(
+        json.dumps(model_payload, indent=2), encoding="utf-8"
+    )
+    (symbol_dir / "metrics.json").write_text(
+        json.dumps(metrics, indent=2), encoding="utf-8"
+    )
+    return model_payload
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--symbol", default="EUR/USD", choices=sorted(SYMBOLS))
+    parser.add_argument("--output-dir", default="models")
+    args = parser.parse_args()
+    result = train_symbol(args.symbol, Path(args.output_dir))
+    print(
+        json.dumps(
+            {"instrument": args.symbol, "metrics": result["metrics"]},
+            indent=2,
+        )
+    )
+
+
+if __name__ == "__main__":
+    main()

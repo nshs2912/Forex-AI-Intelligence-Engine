@@ -2,7 +2,15 @@
   "schema_version": 1,
   "system": "Forex AI Intelligence Engine",
   "approval_policy": "LIVE_APPROVAL_POLICY.md",
-  "models": {},
   "system_status": "GOVERNED / NOT LIVE",
-  "approval_required": true
+  "approval_required": true,
+  "models": {
+    "EUR/USD": {"model_id": "EURUSD", "status": "trained_not_approved_for_live"},
+    "GBP/USD": {"model_id": "GBPUSD", "status": "trained_not_approved_for_live"},
+    "USD/JPY": {"model_id": "USDJPY", "status": "trained_not_approved_for_live"},
+    "AUD/USD": {"model_id": "AUDUSD", "status": "trained_not_approved_for_live"},
+    "USD/CHF": {"model_id": "USDCHF", "status": "trained_not_approved_for_live"},
+    "USD/CAD": {"model_id": "USDCAD", "status": "trained_not_approved_for_live"},
+    "NZD/USD": {"model_id": "NZDUSD", "status": "trained_not_approved_for_live"}
+  }
 }

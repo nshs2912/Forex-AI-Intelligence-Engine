@@ -4,6 +4,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import os
+
+try:
+    import streamlit as st
+except ImportError:  # pragma: no cover - library remains usable outside Streamlit
+    st = None
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 import json
@@ -27,10 +32,18 @@ class MarketDataError(RuntimeError):
 
 
 def _api_key() -> str:
-    key = os.getenv("TWELVE_DATA_API_KEY", "").strip()
+    key = ""
+    if st is not None:
+        try:
+            key = str(st.secrets.get("TWELVE_DATA_API_KEY", "")).strip()
+        except Exception:
+            key = ""
+    if not key:
+        key = os.getenv("TWELVE_DATA_API_KEY", "").strip()
     if not key:
         raise MarketDataError(
-            "TWELVE_DATA_API_KEY is not configured. Add it as a deployment secret."
+            "TWELVE_DATA_API_KEY is not configured. Add it to Streamlit Secrets "
+            "or the deployment environment."
         )
     return key
 

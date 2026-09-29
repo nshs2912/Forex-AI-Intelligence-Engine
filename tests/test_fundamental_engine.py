@@ -63,4 +63,31 @@ def test_pair_score_is_base_minus_quote():
     assert result.status == "LIVE"
     assert result.score > 0
     assert result.base_currency_score > result.quote_currency_score
-\n\ndef test_news_score_is_included_when_live_news_is_available():\n    now = datetime(2026, 9, 29, tzinfo=timezone.utc)\n    base = [{"Event": "GDP Growth", "Actual": "3", "Forecast": "2", "Previous": "1", "Importance": 3, "Date": "2026-09-29T10:00:00+00:00"}]\n    quote = [{"Event": "GDP Growth", "Actual": "1", "Forecast": "2", "Previous": "2", "Importance": 3, "Date": "2026-09-29T10:00:00+00:00"}]\n    with patch("forex_ai.fundamental_engine._fetch_country", side_effect=[base, quote]), patch(\n        "forex_ai.fundamental_engine.fetch_live_news_score",\n        return_value=(0.5, "LIVE", 2, ({"title": "Strong growth outlook", "score": 0.5},), "ok"),\n    ):\n        result = fetch_fundamental_score("EUR/USD", now=now)\n    assert result.status == "LIVE"\n    assert result.news_score == 0.5\n    assert result.news_evidence_count == 2\n    assert result.score is not None\n    assert result.score > 0\n\ndef test_news_failure_degrades_macro_score_instead_of_zeroing_it():\n    now = datetime(2026, 9, 29, tzinfo=timezone.utc)\n    base = [{"Event": "GDP Growth", "Actual": "3", "Forecast": "2", "Previous": "1", "Importance": 3, "Date": "2026-09-29T10:00:00+00:00"}]\n    quote = [{"Event": "GDP Growth", "Actual": "1", "Forecast": "2", "Previous": "2", "Importance": 3, "Date": "2026-09-29T10:00:00+00:00"}]\n    with patch("forex_ai.fundamental_engine._fetch_country", side_effect=[base, quote]), patch(\n        "forex_ai.fundamental_engine.fetch_live_news_score",\n        return_value=(None, "UNAVAILABLE", 0, (), "news unavailable"),\n    ):\n        result = fetch_fundamental_score("EUR/USD", now=now)\n    assert result.status == "DEGRADED"\n    assert result.score == result.macro_score\n
+
+
+def test_news_score_is_included_when_live_news_is_available():
+    now = datetime(2026, 9, 29, tzinfo=timezone.utc)
+    base = [{"Event": "GDP Growth", "Actual": "3", "Forecast": "2", "Previous": "1", "Importance": 3, "Date": "2026-09-29T10:00:00+00:00"}]
+    quote = [{"Event": "GDP Growth", "Actual": "1", "Forecast": "2", "Previous": "2", "Importance": 3, "Date": "2026-09-29T10:00:00+00:00"}]
+    with patch("forex_ai.fundamental_engine._fetch_country", side_effect=[base, quote]), patch(
+        "forex_ai.fundamental_engine.fetch_live_news_score",
+        return_value=(0.5, "LIVE", 2, ({"title": "Strong growth outlook", "score": 0.5},), "ok"),
+    ):
+        result = fetch_fundamental_score("EUR/USD", now=now)
+    assert result.status == "LIVE"
+    assert result.news_score == 0.5
+    assert result.news_evidence_count == 2
+    assert result.score is not None
+    assert result.score > 0
+
+def test_news_failure_degrades_macro_score_instead_of_zeroing_it():
+    now = datetime(2026, 9, 29, tzinfo=timezone.utc)
+    base = [{"Event": "GDP Growth", "Actual": "3", "Forecast": "2", "Previous": "1", "Importance": 3, "Date": "2026-09-29T10:00:00+00:00"}]
+    quote = [{"Event": "GDP Growth", "Actual": "1", "Forecast": "2", "Previous": "2", "Importance": 3, "Date": "2026-09-29T10:00:00+00:00"}]
+    with patch("forex_ai.fundamental_engine._fetch_country", side_effect=[base, quote]), patch(
+        "forex_ai.fundamental_engine.fetch_live_news_score",
+        return_value=(None, "UNAVAILABLE", 0, (), "news unavailable"),
+    ):
+        result = fetch_fundamental_score("EUR/USD", now=now)
+    assert result.status == "DEGRADED"
+    assert result.score == result.macro_score

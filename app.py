@@ -149,7 +149,10 @@ if data_mode == "Live" and live_quote is not None:
     except (MarketDataError, ValueError, KeyError) as exc:
         technical_data_status = f"unavailable: {exc}"
 
-# Fundamental intelligence is independent of price quote freshness.\nif data_mode == "Live":\n    @st.cache_data(ttl=300, show_spinner=False)\n    def _cached_fundamental_score(symbol: str):\n        return fetch_fundamental_score(symbol)\n\n    fundamental_result = _cached_fundamental_score(instrument)\n    if fundamental_result.status == "LIVE":\n        fundamental = fundamental_result.score\n    else:\n        fundamental = None\nelse:\n    fundamental_result = None\n\nwith st.expander("📋 Supported instruments", expanded=False):
+# Fundamental intelligence is independent of price quote freshness.\nfundamental_result = None
+fundamental = None
+
+if data_mode == "Live":\n    @st.cache_data(ttl=300, show_spinner=False)\n    def _cached_fundamental_score(symbol: str):\n        return fetch_fundamental_score(symbol)\n\n    fundamental_result = _cached_fundamental_score(instrument)\n    if fundamental_result.status == "LIVE":\n        fundamental = fundamental_result.score\n    else:\n        fundamental = None\nelse:\n    fundamental_result = None\n\nwith st.expander("📋 Supported instruments", expanded=False):
     st.markdown("**7 Major Currency Pairs**")
     st.write(", ".join(MAJOR_PAIRS))
     st.markdown("**Precious Metals**")

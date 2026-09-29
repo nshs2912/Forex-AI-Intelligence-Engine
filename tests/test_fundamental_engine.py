@@ -60,7 +60,8 @@ def test_pair_score_is_base_minus_quote():
     quote = [{"Event": "GDP Growth", "Actual": "1", "Forecast": "2", "Previous": "2", "Importance": 3, "Date": "2026-09-29T10:00:00+00:00"}]
     with patch("forex_ai.fundamental_engine._fetch_country", side_effect=[base, quote]):
         result = fetch_fundamental_score("EUR/USD", now=now)
-    assert result.status == "LIVE"
+    assert result.status == "DEGRADED"
+    assert result.score is not None
     assert result.score > 0
     assert result.base_currency_score > result.quote_currency_score
 

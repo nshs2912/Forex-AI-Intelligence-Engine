@@ -27,6 +27,8 @@ from sklearn.metrics import (
 )
 from sklearn.preprocessing import StandardScaler
 
+from forex_ai.feature_engineering import FEATURES, build_features
+
 DATA_BASE = "https://raw.githubusercontent.com/nktcodes/Forex-Data/main/"
 SYMBOLS = {
     "EUR/USD": "EUR_USD.csv",
@@ -37,16 +39,6 @@ SYMBOLS = {
     "USD/CAD": "USD_CAD.csv",
     "NZD/USD": "NZD_USD.csv",
 }
-FEATURES = [
-    "ret_1",
-    "ret_5",
-    "ret_10",
-    "ret_20",
-    "vol_10",
-    "vol_20",
-    "range_pct",
-    "volume_change",
-]
 
 
 def _sigmoid(x: np.ndarray | float) -> np.ndarray | float:
@@ -81,16 +73,7 @@ def load_data(symbol: str) -> pd.DataFrame:
 
 
 def make_dataset(df: pd.DataFrame, horizon: int = 5, threshold: float = 0.005) -> pd.DataFrame:
-    out = df.copy()
-    ret = out["close"].pct_change()
-    out["ret_1"] = ret
-    out["ret_5"] = out["close"].pct_change(5)
-    out["ret_10"] = out["close"].pct_change(10)
-    out["ret_20"] = out["close"].pct_change(20)
-    out["vol_10"] = ret.rolling(10).std()
-    out["vol_20"] = ret.rolling(20).std()
-    out["range_pct"] = (out["high"] - out["low"]) / out["close"]
-    out["volume_change"] = out["tick_volume"].replace(0, np.nan).pct_change()
+    out = build_features(df)
     forward_return = out["close"].shift(-horizon) / out["close"] - 1.0
     out["label"] = np.where(
         forward_return >= threshold,

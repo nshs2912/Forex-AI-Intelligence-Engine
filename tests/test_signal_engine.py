@@ -6,3 +6,9 @@ def test_bullish():
 
 def test_neutral():
     assert combine_signals(0,0,0).direction=="neutral"
+
+
+def test_unavailable_fundamental_is_not_treated_as_neutral():
+    result = combine_signals(None, 0.8, 0.4)
+    assert result.components["fundamental"] is None
+    assert result.score > 0.4

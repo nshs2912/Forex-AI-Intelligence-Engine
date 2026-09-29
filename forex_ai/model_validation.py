@@ -11,6 +11,8 @@ from datetime import date
 import json
 from pathlib import Path
 
+from forex_ai.feature_engineering import FEATURES
+
 
 # Conservative software gates. These are acceptance criteria for this DSS,
 # not claims that a model meeting them will be profitable.
@@ -44,10 +46,7 @@ def validate_model_artifact(path: str | Path, *, as_of: date | None = None) -> V
 
     checks["schema"] = payload.get("schema_version") == 1
     checks["calibration"] = payload.get("calibration") == "platt_sigmoid"
-    checks["feature_parity"] = payload.get("features") == [
-        "ret_1", "ret_5", "ret_10", "ret_20",
-        "vol_10", "vol_20", "range_pct", "volume_change",
-    ]
+    checks["feature_parity"] = payload.get("features") == FEATURES
     checks["chronological_metrics"] = (
         int(metrics.get("train_rows", 0)) >= 100
         and int(metrics.get("calibration_rows", 0)) >= 100

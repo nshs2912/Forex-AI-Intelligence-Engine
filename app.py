@@ -167,7 +167,8 @@ if data_mode == "Live":
         fundamental = None
 else:
     fundamental_result = None
-\nwith st.expander("📋 Supported instruments", expanded=False):
+
+with st.expander("📋 Supported instruments", expanded=False):
     st.markdown("**7 Major Currency Pairs**")
     st.write(", ".join(MAJOR_PAIRS))
     st.markdown("**Precious Metals**")

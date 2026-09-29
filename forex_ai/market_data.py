@@ -1,7 +1,7 @@
 """Live market-data adapter for the Forex AI Intelligence Engine."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 import os
 
@@ -28,7 +28,7 @@ class MarketQuote:
     ask: float | None
     timestamp: datetime
     source: str
-    received_at: datetime | None = None
+    received_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class MarketDataError(RuntimeError):

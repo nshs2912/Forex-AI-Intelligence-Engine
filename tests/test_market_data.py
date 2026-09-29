@@ -28,6 +28,7 @@ def test_market_quote_contract():
     assert quote.symbol == "EUR/USD"
     assert quote.price > 0
     assert quote.source == "Twelve Data"
+    assert quote.received_at.tzinfo is not None
 
 
 def test_missing_api_key(monkeypatch):

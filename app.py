@@ -32,18 +32,16 @@ with st.sidebar:
         term = st.selectbox("Term", list(terms))
         st.markdown(f"**{term}**")
         st.write(terms[term])
-        st.caption("Full glossary: TRADING_GLOSSARY.md")
 
 pair_description = MAJOR_PAIRS.get(instrument) or PRECIOUS_METALS[instrument]
 st.subheader(f"📊 {instrument}")
 st.info(pair_description)
 
-m0, m1, m2, m3, m4 = st.columns(5)
-m0.metric("Asset Class", asset_class)
-m1.metric("Direction", "Pending")
-m2.metric("Stop Loss", "—")
-m3.metric("Take Profit", "—")
-m4.metric("R:R", f"{rr:.1f}")
+with st.expander("📋 Supported instruments", expanded=False):
+    st.markdown("**7 Major Currency Pairs**")
+    st.write(", ".join(MAJOR_PAIRS))
+    st.markdown("**Precious Metals**")
+    st.write(", ".join(PRECIOUS_METALS))
 
 c1, c2, c3 = st.columns(3)
 with c1:
@@ -55,26 +53,35 @@ with c3:
 
 signal = combine_signals(fundamental, technical, ml)
 setup = build_trade_setup(
-    side, entry, atr, atr_multiplier=atr_multiplier, rr=rr,
-    account_balance=balance, risk_pct=risk_pct,
+    side,
+    entry,
+    atr,
+    atr_multiplier=atr_multiplier,
+    rr=rr,
+    account_balance=balance,
+    risk_pct=risk_pct,
 )
 
+m0, m1, m2, m3, m4 = st.columns(5)
+m0.metric("Asset Class", asset_class)
 m1.metric("Direction", signal.direction.title())
-m1.caption(f"Confidence {signal.confidence:.0%}")
 m2.metric("Stop Loss", f"{setup.stop_loss:.6f}")
 m3.metric("Take Profit", f"{setup.take_profit:.6f}")
 m4.metric("R:R", f"{setup.risk_reward:.2f}")
+st.caption(f"Signal confidence: {signal.confidence:.0%}")
 
 st.subheader("Risk plan")
-st.write({
-    "Instrument": instrument,
-    "Asset class": asset_class,
-    "Entry": setup.entry,
-    "SL": setup.stop_loss,
-    "TP": setup.take_profit,
-    "R:R": setup.risk_reward,
-    "Position units": round(setup.position_units, 2),
-})
+st.write(
+    {
+        "Instrument": instrument,
+        "Asset class": asset_class,
+        "Entry": setup.entry,
+        "SL": setup.stop_loss,
+        "TP": setup.take_profit,
+        "R:R": setup.risk_reward,
+        "Position units": round(setup.position_units, 2),
+    }
+)
 st.info(
     "Decision-support only. Validate live market conditions, spread, slippage, "
     "contract specifications and broker constraints before use."

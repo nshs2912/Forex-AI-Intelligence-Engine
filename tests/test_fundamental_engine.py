@@ -102,13 +102,11 @@ def test_missing_macro_key_does_not_crash_news_fallback():
 
 
 def test_news_provider_rate_limit_is_degraded_not_exception():
-    from forex_ai.fundamental_engine import fetch_live_news_score
+    from forex_ai.fundamental_engine import FundamentalDataError, fetch_live_news_score
 
     with patch(
         "forex_ai.fundamental_engine._fetch_country_news",
-        side_effect=__import__("urllib.error", fromlist=["HTTPError"]).HTTPError(
-            "https://example.test", 429, "Too Many Requests", {}, None
-        ),
+        side_effect=FundamentalDataError("Trading Economics news feed rate limit exceeded (HTTP 429)."),
     ):
         score, status, count, evidence, message = fetch_live_news_score("EUR/USD")
     assert score is None

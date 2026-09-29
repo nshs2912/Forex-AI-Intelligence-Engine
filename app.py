@@ -310,6 +310,36 @@ if data_mode == "Live" and instrument in MAJOR_PAIRS and live_quote is not None 
     except (MarketDataError, FileNotFoundError, ValueError, KeyError) as exc:
         ml_data_status = f"unavailable: {exc}"
 
+st.subheader("📡 Live Intelligence Scores")
+s1, s2, s3 = st.columns(3)
+s1.metric(
+    "Fundamental Score",
+    "N/A" if fundamental is None else f"{fundamental:+.2f}",
+)
+s2.metric(
+    "Technical Score",
+    "N/A" if technical is None else f"{technical:+.2f}",
+)
+s3.metric(
+    "ML Direction",
+    f"{ml:+.2f}" if ml_inference is not None else "N/A",
+)
+if technical_result is not None and technical is not None:
+    st.caption(
+        f"Technical LIVE · Trend {technical_result.trend:+.2f} · "
+        f"Momentum {technical_result.momentum:+.2f} · MACD {technical_result.macd:+.2f} · "
+        f"Volatility {technical_result.volatility:+.2f} · Structure {technical_result.structure:+.2f} · "
+        f"{technical_result.bars} completed bars"
+    )
+else:
+    st.warning("Technical Score belum tersedia: market OHLC live belum tersedia atau bar belum cukup.")
+
+if fundamental is None:
+    st.info(
+        "Fundamental Score = N/A. Repository belum terhubung ke validated live macro/news provider; "
+        "reference links tidak digunakan sebagai score."
+    )
+
 signal = combine_signals(fundamental, technical, ml)
 
 if signal.direction == "bullish":

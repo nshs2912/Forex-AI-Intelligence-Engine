@@ -79,6 +79,18 @@ with c3:
     ml = st.slider("ML direction", -1.0, 1.0, 0.0, 0.05)
 
 signal = combine_signals(fundamental, technical, ml)
+
+# The engine score is mapped to a directional probability-like value for display.
+# It is not a calibrated statistical probability unless a calibrated ML model is supplied.
+bullish_probability = 0.5 + (signal.score * 0.5)
+bearish_probability = 1.0 - bullish_probability
+if bullish_probability >= 0.55:
+    trade_action = "BUY"
+elif bearish_probability >= 0.55:
+    trade_action = "SELL"
+else:
+    trade_action = "WAIT"
+
 setup = build_trade_setup(
     side,
     entry,
@@ -89,20 +101,32 @@ setup = build_trade_setup(
     risk_pct=risk_pct,
 )
 
+st.subheader("🎯 AI Market Signal")
+a0, a1, a2, a3 = st.columns(4)
+a0.metric("Position", trade_action)
+a1.metric("Reference Price", f"{entry:.6f}")
+a2.metric("Bullish", f"{bullish_probability:.1%}")
+a3.metric("Bearish", f"{bearish_probability:.1%}")
+
 m0, m1, m2, m3, m4 = st.columns(5)
 m0.metric("Asset Class", asset_class)
 m1.metric("Direction", signal.direction.title())
 m2.metric("Stop Loss", f"{setup.stop_loss:.6f}")
 m3.metric("Take Profit", f"{setup.take_profit:.6f}")
 m4.metric("R:R", f"{setup.risk_reward:.2f}")
-st.caption(f"Signal confidence: {signal.confidence:.0%}")
+st.caption(
+    f"Signal confidence: {signal.confidence:.0%} · "
+    "Bullish/Bearish values are directional score mappings, not calibrated probabilities."
+)
 
 st.subheader("Risk plan")
 st.write(
     {
         "Data mode": data_mode,
+        "Position": trade_action,
         "Instrument": instrument,
         "Asset class": asset_class,
+        "Reference price": entry,
         "Entry": setup.entry,
         "SL": setup.stop_loss,
         "TP": setup.take_profit,

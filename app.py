@@ -70,10 +70,42 @@ if data_mode == "Live":
     try:
         live_quote = fetch_live_quote(instrument)
         entry = live_quote.price
-        st.success(
-            f"📡 LIVE — {live_quote.source} | {live_quote.symbol} | "
-            f"{live_quote.price:.6f} | {display_timezone} "
-            f"{live_quote.received_at.astimezone(ZoneInfo(timezone_options[display_timezone])):%d-%m-%Y %I:%M:%S %p}"
+        live_tz = timezone_options[display_timezone]
+        components.html(
+            f"""
+            <div style="font-family: sans-serif; padding: 10px 14px; border-radius: 8px; border: 1px solid #2e7d32;">
+              <div id="live-status" style="font-size: 1rem; font-weight: 700;">
+                📡 LIVE — {live_quote.source} | {live_quote.symbol} | {live_quote.price:.6f}
+              </div>
+              <div id="live-clock" style="font-size: 1rem; font-weight: 600; margin-top: 4px;"></div>
+              <div style="font-size: 0.78rem; opacity: 0.72; margin-top: 3px;">
+                Jam dashboard berjalan • {display_timezone}
+              </div>
+            </div>
+            <script>
+              const liveTz = {live_tz!r};
+              function updateLiveClock() {{
+                const parts = new Intl.DateTimeFormat("en-GB", {{
+                  timeZone: liveTz,
+                  day: "2-digit", month: "2-digit", year: "numeric",
+                  hour: "2-digit", minute: "2-digit", second: "2-digit",
+                  hour12: true
+                }}).formatToParts(new Date());
+                const get = (name) => parts.find(p => p.type === name)?.value || "";
+                document.getElementById("live-clock").textContent =
+                  "🕐 " + get("day") + "-" + get("month") + "-" + get("year") + " " +
+                  get("hour") + ":" + get("minute") + ":" + get("second") + " " +
+                  get("dayPeriod") + " {display_timezone}";
+              }}
+              updateLiveClock();
+              setInterval(updateLiveClock, 1000);
+            </script>
+            """,
+            height=88,
+        )
+        received_local = live_quote.received_at.astimezone(ZoneInfo(live_tz))
+        st.caption(
+            f"Quote received: {received_local:%d-%m-%Y %I:%M:%S %p} {display_timezone}"
         )
         if live_quote.bid is not None and live_quote.ask is not None:
             st.caption(
@@ -390,37 +422,6 @@ st.caption(
 
 if data_mode == "Live" and live_quote:
     tz_name = timezone_options[display_timezone]
-    components.html(
-        f"""
-        <div style="font-family: sans-serif; padding: 4px 0;">
-          <div id="clock" style="font-size: 1.05rem; font-weight: 600;"></div>
-          <div style="font-size: 0.82rem; color: #666;">
-            Jam berjalan • {display_timezone} • data diterima dashboard
-          </div>
-        </div>
-        <script>
-          const tz = {tz_name!r};
-          function tick() {{
-            const now = new Date();
-            const parts = new Intl.DateTimeFormat("en-GB", {{
-              timeZone: tz,
-              day: "2-digit", month: "2-digit", year: "numeric",
-              hour: "2-digit", minute: "2-digit", second: "2-digit",
-              hour12: true
-            }}).formatToParts(now);
-            const get = (name) => parts.find(p => p.type === name)?.value || "";
-            document.getElementById("clock").textContent =
-              get("day") + "-" + get("month") + "-" + get("year") + " " +
-              get("hour") + ":" + get("minute") + ":" + get("second") + " " +
-              get("dayPeriod") + " {display_timezone}";
-          }}
-          tick();
-          setInterval(tick, 1000);
-        </script>
-        """,
-        height=58,
-    )
-    st.caption(f"Automatic market-data refresh: every {refresh} seconds. The clock above runs continuously between refreshes.")
 
 st.divider()
 st.caption(

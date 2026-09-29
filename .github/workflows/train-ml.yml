@@ -3,7 +3,16 @@ name: ML Training
 on:
   push:
     branches: [main]
+    paths:
+      - "forex_ai/training/**"
+      - "forex_ai/feature_engineering.py"
+      - "requirements.txt"
+      - ".github/workflows/train-ml.yml"
   workflow_dispatch:
+
+concurrency:
+  group: ml-training-main
+  cancel-in-progress: true
 
 permissions:
   contents: write

@@ -8,6 +8,14 @@ def test_parse_timestamp_adds_utc_when_missing():
     assert value.tzinfo is not None
 
 
+def test_unix_timestamp_is_preferred():
+    from forex_ai.market_data import _parse_timestamp
+
+    value = _parse_timestamp("2026-09-29 00:00:00", 1780272000)
+    assert value.tzinfo is not None
+    assert value.year == 2026
+
+
 def test_market_quote_contract():
     quote = MarketQuote(
         symbol="EUR/USD",

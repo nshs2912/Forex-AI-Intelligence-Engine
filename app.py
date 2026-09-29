@@ -13,6 +13,7 @@ from forex_ai.dss_governance import assess_dss
 from forex_ai.model_validation import validate_model_artifact
 from forex_ai.probability import unavailable_result
 from forex_ai.risk_engine import build_trade_setup
+from forex_ai.risk_validation import validate_trade_risk
 from forex_ai.signal_engine import combine_signals
 
 st.set_page_config(page_title="Forex AI Intelligence Engine", layout="wide")
@@ -229,11 +230,12 @@ except (FileNotFoundError, ValueError, KeyError, OSError):
     validation_result = None
     validation_passed = False
 
-risk_controls_ok = (
-    setup.risk_distance > 0
-    and setup.take_profit > 0
-    and setup.position_units > 0
-    and setup.risk_reward >= 1.0
+risk_controls_ok = validate_trade_risk(
+    risk_distance=setup.risk_distance,
+    reward_distance=setup.reward_distance,
+    risk_reward=setup.risk_reward,
+    position_units=setup.position_units,
+    risk_pct=risk_pct,
 )
 
 dss = assess_dss(

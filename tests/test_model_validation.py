@@ -18,7 +18,7 @@ def test_validation_requires_recent_data_and_performance(tmp_path):
         "calibration": "platt_sigmoid",
         "features": [
             "ret_1", "ret_5", "ret_10", "ret_20",
-            "vol_10", "vol_20", "range_pct", "volume_change",
+            "vol_10", "vol_20", "range_pct",
         ],
         "metrics": {
             "train_rows": 1000,

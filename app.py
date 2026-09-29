@@ -10,6 +10,7 @@ from forex_ai.market_data import MarketDataError, fetch_daily_history, fetch_liv
 from forex_ai.ml_inference import infer_from_features, load_model
 from forex_ai.feature_engineering import build_features
 from forex_ai.dss_governance import assess_dss
+from forex_ai.model_validation import validate_model_artifact
 from forex_ai.probability import unavailable_result
 from forex_ai.risk_engine import build_trade_setup
 from forex_ai.signal_engine import combine_signals
@@ -136,11 +137,16 @@ with st.expander(f"Trained model status — {instrument}", expanded=False):
             f"{metrics.get('dataset_end', 'N/A')} · "
             f"Model status: {model_payload.get('status', 'unknown')}"
         )
-        st.warning(
-            "Model sudah dilatih dan tersimpan, tetapi inference live belum diaktifkan "
-            "karena dashboard belum membangun feature vector OHLC yang sama dari data live. "
-            "ML Direction di bawah tetap manual agar tidak menghasilkan probability palsu."
+        validation = validate_model_artifact(
+            f"models/{instrument.replace("/", "")}/model.json"
         )
+        if validation.passed:
+            st.success("Automated live-readiness gates: PASS")
+        else:
+            st.warning(
+                "Automated live-readiness gates: BLOCKED — "
+                + ", ".join(validation.reasons)
+            )
         st.caption(
             "Feature model: " + ", ".join(model_payload.get("features", []))
         )
@@ -196,22 +202,6 @@ elif signal.direction == "bearish":
 else:
     raw_action = "WAIT"
 
-dss = assess_dss(
-    model_status=(
-        ml_inference.model.status
-        if ml_inference is not None
-        else "model_unavailable"
-    ),
-    calibrated=probability.calibrated,
-    data_fresh=(live_quote is not None) if data_mode == "Live" else False,
-    feature_parity=ml_inference is not None,
-    model_metrics_available=bool(
-        ml_inference is not None and ml_inference.model.metrics
-    ),
-    risk_controls_ok=True,
-)
-
-trade_action = raw_action if dss.ready else "GOVERNED"
 risk_side = (
     "Long" if raw_action == "BUY"
     else "Short" if raw_action == "SELL"
@@ -227,6 +217,40 @@ setup = build_trade_setup(
     account_balance=balance,
     risk_pct=risk_pct,
 )
+
+try:
+    artifact_path = f"models/{instrument.replace("/", "")}/model.json"
+    validation_result = validate_model_artifact(artifact_path)
+    validation_passed = validation_result.passed
+except (FileNotFoundError, ValueError, KeyError, OSError):
+    validation_result = None
+    validation_passed = False
+
+risk_controls_ok = (
+    setup.risk_distance > 0
+    and setup.take_profit > 0
+    and setup.position_units > 0
+    and setup.risk_reward >= 1.0
+)
+
+dss = assess_dss(
+    model_status=(
+        ml_inference.model.status
+        if ml_inference is not None
+        else "model_unavailable"
+    ),
+    calibrated=probability.calibrated,
+    data_fresh=(live_quote is not None) if data_mode == "Live" else False,
+    feature_parity=ml_inference is not None,
+    model_metrics_available=bool(
+        ml_inference is not None and ml_inference.model.metrics
+    ),
+    risk_controls_ok=risk_controls_ok,
+    validation_passed=validation_passed,
+    approval_record_valid=False,
+)
+
+trade_action = raw_action if dss.ready else "GOVERNED"
 
 st.subheader("🎯 AI Market Signal")
 a0, a1, a2, a3 = st.columns(4)
@@ -268,6 +292,17 @@ st.caption(
 with st.expander("Audit readiness details", expanded=False):
     for reason in dss.reasons:
         st.write(f"• {reason}")
+    if validation_result is not None:
+        st.caption(
+            "Automated validation: "
+            + ("PASS" if validation_result.passed else "BLOCKED")
+            + " · "
+            + (", ".join(validation_result.reasons) or "all checks passed")
+        )
+    st.caption(
+        "Live approval requires a separate auditable approval record; "
+        "CI/training cannot silently promote a model."
+    )
 
 st.subheader("🛡️ Risk Plan")
 st.caption("Trade Decision Card — entry dan level risiko dihitung dari harga referensi dan parameter Risk Engine.")

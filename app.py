@@ -26,9 +26,9 @@ from forex_ai.risk_engine import build_trade_setup
 from forex_ai.risk_validation import validate_trade_risk
 from forex_ai.signal_engine import combine_signals
 
-st.set_page_config(page_title="Forex AI Intelligence Engine", layout="wide")
-st.title("Forex AI Intelligence Engine")
-st.caption("Live market data + Fundamental + Technical + ML with instrument-aware SL, TP and risk sizing.")
+st.set_page_config(page_title="Forex AI Market Intelligence Monitor", layout="wide")
+st.title("Forex AI Market Intelligence Monitor")
+st.caption("Market state + Fundamental Evidence + ML Intelligence + DSS Governance + Risk observability.")
 
 INSTRUMENTS = list(MAJOR_PAIRS) + list(PRECIOUS_METALS)
 
@@ -130,7 +130,48 @@ with st.expander("📋 Supported instruments", expanded=False):
     st.markdown("**7 Major Currency Pairs**")
     st.write(", ".join(MAJOR_PAIRS))
     st.markdown("**Precious Metals**")
-    st.write(", ".join(PRECIOUS_METALS))
+    st.write(", ".join(PRECst.subheader("🛰️ Market Intelligence Monitor")
+mi1, mi2, mi3, mi4 = st.columns(4)
+mi1.metric("Instrument", instrument)
+mi2.metric("Asset Class", asset_class)
+mi3.metric("Data Mode", data_mode)
+if live_quote is not None:
+    mi4.metric("Quote Status", f"{freshness} · {age_seconds:.0f}s")
+else:
+    mi4.metric("Quote Status", "DEMO / N/A")
+
+monitor_left, monitor_right = st.columns(2)
+with monitor_left:
+    st.markdown("**Market Data Health**")
+    if live_quote is not None:
+        st.write(f"Provider: {live_quote.source}")
+        st.write(f"Provider timestamp: {live_quote.timestamp.isoformat()}")
+        st.write(f"Application received: {live_quote.received_at.isoformat()}")
+        if live_quote.bid is not None and live_quote.ask is not None:
+            spread = live_quote.ask - live_quote.bid
+            st.write(f"Bid/Ask spread: {spread:.6f}")
+        if freshness == "FRESH":
+            st.success("Market snapshot is fresh.")
+        elif freshness == "AGING":
+            st.warning("Market snapshot is aging; refresh before relying on it.")
+        else:
+            st.error("Market snapshot is stale.")
+    else:
+        st.info("No live quote. Demo mode does not represent current market conditions.")
+
+with monitor_right:
+    st.markdown("**Evidence & Feed Coverage**")
+    st.write("Fundamental score: **manual input**")
+    st.write("Technical score: **manual input**")
+    st.write("News feed: **reference links only**")
+    st.write("Economic calendar: **reference link only**")
+    st.write("ML inference: **live only when completed daily features are available**")
+    st.caption(
+        "Coverage status is intentionally explicit so the monitor never presents "
+        "reference data as an automated live fundamental/news feed."
+    )
+
+IOUS_METALS))
 
 st.subheader("🧭 Signal Inputs")
 st.caption(

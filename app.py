@@ -1,5 +1,7 @@
 """Streamlit dashboard for the Forex AI Intelligence Engine."""
 import streamlit as st
+from datetime import timezone
+from zoneinfo import ZoneInfo
 from streamlit_autorefresh import st_autorefresh
 
 from forex_ai.glossary import MAJOR_PAIRS, PRECIOUS_METALS, TRADING_GLOSSARY
@@ -17,6 +19,12 @@ INSTRUMENTS = list(MAJOR_PAIRS) + list(PRECIOUS_METALS)
 with st.sidebar:
     st.header("Trade setup")
     data_mode = st.radio("Market data", ["Live", "Demo"], horizontal=True)
+    timezone_options = {
+        "WIB (UTC+7)": "Asia/Jakarta",
+        "WITA (UTC+8)": "Asia/Makassar",
+        "WIT (UTC+9)": "Asia/Jayapura",
+    }
+    display_timezone = st.selectbox("Zona waktu", list(timezone_options), index=0)
     instrument = st.selectbox("Instrument", INSTRUMENTS, index=0)
     asset_class = "Forex" if instrument in MAJOR_PAIRS else "Precious Metal"
 
@@ -54,7 +62,8 @@ if data_mode == "Live":
         entry = live_quote.price
         st.success(
             f"📡 LIVE — {live_quote.source} | {live_quote.symbol} | "
-            f"{live_quote.price:.6f} | UTC {live_quote.timestamp:%Y-%m-%d %H:%M:%S}"
+            f"{live_quote.price:.6f} | {display_timezone} "
+            f"{live_quote.timestamp.astimezone(ZoneInfo(timezone_options[display_timezone])):%Y-%m-%d %H:%M:%S}"
         )
         if live_quote.bid is not None and live_quote.ask is not None:
             st.caption(
@@ -140,6 +149,14 @@ st.write(
 )
 
 if data_mode == "Live":
+    local_timestamp = live_quote.timestamp.astimezone(
+        ZoneInfo(timezone_options[display_timezone])
+    ) if live_quote else None
+    if local_timestamp:
+        st.caption(
+            f"Last provider update: {local_timestamp:%Y-%m-%d %H:%M:%S} {display_timezone} "
+            f"(source timestamp normalized from UTC)"
+        )
     st.caption(f"Automatic refresh: every {refresh} seconds.")
 
 st.info(

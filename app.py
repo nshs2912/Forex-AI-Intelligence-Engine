@@ -261,11 +261,14 @@ with st.expander(f"Trained model status — {instrument}", expanded=False):
 st.subheader("📚 Fundamental Intelligence")
 fundamental_info = fundamental_inputs_for(instrument)
 with st.expander(f"Fundamental data & drivers — {instrument}", expanded=False):
-    st.info(
-        "Status: UNAVAILABLE for automated scoring. The repository currently has "
-        "reference sources but no validated live macro/news feed. These links are "
-        "not converted into a Fundamental Score."
-    )
+    if fundamental_result is not None and fundamental_result.status == "LIVE":
+        st.success(f"Status: LIVE | Provider: {fundamental_result.provider} | Evidence: {fundamental_result.evidence_count}")
+        st.write(f"Base: {fundamental_result.base_currency_score:+.2f} | Quote: {fundamental_result.quote_currency_score:+.2f} | Relative: {fundamental_result.score:+.2f}")
+    elif fundamental_result is not None:
+        st.warning(f"Status: {fundamental_result.status} | {fundamental_result.message}")
+    else:
+        st.info("Demo mode: Fundamental Score is not calculated.")
+
     st.markdown(f"**Driver utama {instrument}:** {fundamental_info['drivers']}")
     for indicator, details in FUNDAMENTAL_INDICATORS.items():
         st.markdown(f"**{indicator}**")

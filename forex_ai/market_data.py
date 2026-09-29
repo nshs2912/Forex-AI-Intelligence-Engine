@@ -13,8 +13,11 @@ from urllib.parse import quote
 from urllib.request import Request, urlopen
 import json
 
+import pandas as pd
+
 
 TWELVE_DATA_URL = "https://api.twelvedata.com/quote"
+TWELVE_DATA_TIME_SERIES_URL = "https://api.twelvedata.com/time_series"
 
 
 @dataclass(frozen=True)
@@ -90,6 +93,48 @@ def fetch_live_quote(symbol: str, timeout: float = 10.0) -> MarketQuote:
         received_at=datetime.now(timezone.utc),
         source="Twelve Data",
     )
+
+def fetch_daily_history(
+    symbol: str, *, outputsize: int = 60, timeout: float = 15.0
+) -> pd.DataFrame:
+    """Fetch daily OHLC history used by the 1D ML feature pipeline."""
+    symbol = symbol.strip().upper()
+    if not symbol:
+        raise ValueError("symbol must not be empty")
+    if outputsize < 30:
+        raise ValueError("outputsize must be at least 30 for the feature pipeline")
+    key = _api_key()
+    url = (
+        f"{TWELVE_DATA_TIME_SERIES_URL}?symbol={quote(symbol)}"
+        f"&interval=1day&outputsize={outputsize}&apikey={quote(key)}"
+    )
+    request = Request(
+        url, headers={"User-Agent": "Forex-AI-Intelligence-Engine/1.0"}
+    )
+    try:
+        with urlopen(request, timeout=timeout) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except Exception as exc:
+        raise MarketDataError(f"Historical market-data request failed: {exc}") from exc
+    if payload.get("status") == "error" or payload.get("code"):
+        raise MarketDataError(payload.get("message", "Provider returned an error"))
+    values = payload.get("values")
+    if not isinstance(values, list) or not values:
+        raise MarketDataError("Provider returned no historical values")
+    frame = pd.DataFrame(values)
+    required = {"datetime", "open", "high", "low", "close"}
+    missing = required.difference(frame.columns)
+    if missing:
+        raise MarketDataError(f"Historical response missing columns: {sorted(missing)}")
+    frame = frame.rename(columns={"datetime": "date"})
+    frame["date"] = pd.to_datetime(frame["date"], utc=True)
+    for column in ["open", "high", "low", "close", "volume", "tick_volume"]:
+        if column in frame:
+            frame[column] = pd.to_numeric(frame[column], errors="coerce")
+    if "tick_volume" not in frame.columns:
+        frame["tick_volume"] = frame.get("volume", 0.0)
+    frame = frame.sort_values("date").drop_duplicates("date").reset_index(drop=True)
+    return frame.dropna(subset=["open", "high", "low", "close"]).copy()
 
 
 def _optional_float(value) -> float | None:

@@ -186,7 +186,10 @@ with monitor_left:
 
 with monitor_right:
     st.markdown("**Evidence & Feed Coverage**")
-    if fundamental_result is not None and fundamental_result.score is not None:\n        st.write(f"Fundamental score: **{fundamental_result.score:+.2f} · {fundamental_result.status}**")\n    else:\n        st.write("Fundamental score: **N/A — no validated live macro/news evidence**")
+    if fundamental_result is not None and fundamental_result.score is not None:
+        st.write(f"Fundamental score: **{fundamental_result.score:+.2f} · {fundamental_result.status}**")
+    else:
+        st.write("Fundamental score: **N/A — no validated live macro/news evidence**")
     if technical_result is not None and technical is not None:
         st.write(f"Technical score: **{technical:+.2f} · LIVE**")
     else:

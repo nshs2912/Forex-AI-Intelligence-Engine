@@ -73,6 +73,10 @@ st.subheader(f"📊 {instrument}")
 st.info(pair_description)
 
 live_quote = None
+fundamental = None
+technical = None
+technical_result = None
+technical_data_status = "unavailable"
 if data_mode == "Live":
     try:
         live_quote = fetch_live_quote(instrument)
@@ -126,6 +130,23 @@ if data_mode == "Live":
     except MarketDataError as exc:
         st.error(f"Live market data unavailable: {exc}")
         st.warning("Switch to Demo mode or configure TWELVE_DATA_API_KEY.")
+
+# Calculate technical intelligence before rendering the monitor so all
+# dashboard sections use the same live completed-bar snapshot.
+history = None
+if data_mode == "Live" and live_quote is not None:
+    try:
+        history = fetch_daily_history(instrument, outputsize=100)
+        today_utc = live_quote.received_at.date()
+        history = history[history["date"].dt.date < today_utc].copy()
+        technical_result = calculate_technical_score(history)
+        if technical_result.status == "LIVE":
+            technical = technical_result.score
+            technical_data_status = "live"
+        else:
+            technical_data_status = technical_result.status.lower()
+    except (MarketDataError, ValueError, KeyError) as exc:
+        technical_data_status = f"unavailable: {exc}"
 
 with st.expander("📋 Supported instruments", expanded=False):
     st.markdown("**7 Major Currency Pairs**")
@@ -198,11 +219,6 @@ with st.expander("ℹ️ Dasar perhitungan Signal Score", expanded=False):
         "**Keputusan arah:** score > +0.15 = bullish/BUY · score < −0.15 = "
         "bearish/SELL · lainnya = neutral/WAIT."
     )
-fundamental = None
-technical = None
-technical_result = None
-technical_data_status = "unavailable"
-
 st.subheader("🤖 ML Model Intelligence")
 with st.expander(f"Trained model status — {instrument}", expanded=False):
     try:
@@ -270,22 +286,6 @@ with st.expander(f"Fundamental data & drivers — {instrument}", expanded=False)
         "waktu publikasi, relevansi terhadap instrument, serta sumber primer sebelum "
         "memasukkannya sebagai evidence fundamental."
     )
-
-# Live technical intelligence and shared completed-bar history.
-history = None
-if data_mode == "Live" and live_quote is not None:
-    try:
-        history = fetch_daily_history(instrument, outputsize=100)
-        today_utc = live_quote.received_at.date()
-        history = history[history["date"].dt.date < today_utc].copy()
-        technical_result = calculate_technical_score(history)
-        if technical_result.status == "LIVE":
-            technical = technical_result.score
-            technical_data_status = "live"
-        else:
-            technical_data_status = technical_result.status.lower()
-    except (MarketDataError, ValueError, KeyError) as exc:
-        technical_data_status = f"unavailable: {exc}"
 
 # Start without a probability; live ML inference replaces this only when all
 # required daily features and a governed model artifact are available.
@@ -388,7 +388,7 @@ dss = assess_dss(
         else "model_unavailable"
     ),
     calibrated=probability.calibrated,
-    data_fresh=(live_quote is not None) if data_mode == "Live" else False,
+    data_fresh=(live_quote is not None and freshness == "FRESH") if data_mode == "Live" else False,
     feature_parity=ml_inference is not None,
     model_metrics_available=bool(
         ml_inference is not None and ml_inference.model.metrics

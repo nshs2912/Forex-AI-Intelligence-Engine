@@ -63,7 +63,7 @@ if data_mode == "Live":
         st.success(
             f"📡 LIVE — {live_quote.source} | {live_quote.symbol} | "
             f"{live_quote.price:.6f} | {display_timezone} "
-            f"{live_quote.timestamp.astimezone(ZoneInfo(timezone_options[display_timezone])):%Y-%m-%d %H:%M:%S}"
+            f"{live_quote.received_at.astimezone(ZoneInfo(timezone_options[display_timezone])):%d-%m-%Y %I:%M:%S %p}"
         )
         if live_quote.bid is not None and live_quote.ask is not None:
             st.caption(
@@ -149,15 +149,15 @@ st.write(
 )
 
 if data_mode == "Live":
-    local_timestamp = live_quote.timestamp.astimezone(
+    local_timestamp = live_quote.received_at.astimezone(
         ZoneInfo(timezone_options[display_timezone])
     ) if live_quote else None
     if local_timestamp:
         st.caption(
-            f"Last provider update: {local_timestamp:%Y-%m-%d %H:%M:%S} {display_timezone} "
-            f"(source timestamp normalized from UTC)"
+            f"Last data received: {local_timestamp:%d-%m-%Y %I:%M:%S %p} {display_timezone} "
+            f"(dashboard receipt time)"
         )
-    st.caption(f"Automatic refresh: every {refresh} seconds.")
+    st.caption(f"Automatic refresh: every {refresh} seconds. Provider quote time is retained separately for audit.")
 
 st.info(
     "Decision-support only. Live quotes are market-data snapshots, not execution prices. "

@@ -19,6 +19,7 @@ from forex_ai.market_data import (
 )
 from forex_ai.ml_inference import infer_from_features, load_model
 from forex_ai.feature_engineering import build_features
+from forex_ai.technical_engine import calculate_technical_score
 from forex_ai.dss_governance import assess_dss
 from forex_ai.model_validation import validate_model_artifact
 from forex_ai.probability import unavailable_result
@@ -163,49 +164,44 @@ with monitor_left:
 
 with monitor_right:
     st.markdown("**Evidence & Feed Coverage**")
-    st.write("Fundamental score: **manual input**")
-    st.write("Technical score: **manual input**")
+    st.write("Fundamental score: **UNAVAILABLE — no validated live macro/news feed**")
+    if technical_result is not None and technical is not None:
+        st.write(f"Technical score: **{technical:+.2f} · LIVE**")
+    else:
+        st.write("Technical score: **UNAVAILABLE**")
     st.write("News feed: **reference links only**")
     st.write("Economic calendar: **reference link only**")
     st.write("ML inference: **live only when completed daily features are available**")
     st.caption(
-        "Coverage status is intentionally explicit so the monitor never presents "
-        "reference data as an automated live fundamental/news feed."
+        "Technical score is computed from completed OHLC bars. Fundamental remains "
+        "UNAVAILABLE until a validated macro/news provider is connected; reference "
+        "links are never treated as live evidence."
     )
 
 
-st.subheader("🧭 Signal Inputs")
+st.subheader("🧭 Live Intelligence Inputs")
 st.caption(
-    "Saat ini Fundamental, Technical, dan ML Direction adalah input manual untuk "
-    "pengujian engine. Nilainya belum berasal dari feed otomatis."
+    "Technical Score dihitung otomatis dari OHLC market data. Fundamental Score "
+    "hanya digunakan bila feed macro/news tervalidasi tersedia; unavailable tidak "
+    "dianggap netral secara diam-diam."
 )
 with st.expander("ℹ️ Dasar perhitungan Signal Score", expanded=False):
     st.markdown(
-        "**Bobot ensemble saat ini:** Fundamental 25% · Technical 25% · "
+        "**Bobot target ensemble:** Fundamental 25% · Technical 25% · "
         "ML Direction 30% · Market Regime 10% · Risk Filter 10%."
     )
     st.markdown(
-        "**Skala setiap komponen:** −1 = bearish kuat · 0 = netral · "
-        "+1 = bullish kuat. Score akhir adalah gabungan berbobot, bukan probabilitas."
+        "**Skala:** −1 = bearish kuat · 0 = netral · +1 = bullish kuat. "
+        "Score akhir adalah gabungan berbobot, bukan probabilitas."
     )
     st.markdown(
         "**Keputusan arah:** score > +0.15 = bullish/BUY · score < −0.15 = "
         "bearish/SELL · lainnya = neutral/WAIT."
     )
-    st.warning(
-        "Market Regime dan Risk Filter saat ini memakai nilai default netral "
-        "di engine. Fundamental dan Technical juga belum mengambil data live."
-    )
-c1, c2, c3 = st.columns(3)
-with c1:
-    fundamental = st.slider("Fundamental", -1.0, 1.0, 0.0, 0.05)
-    st.caption("−1 bearish kuat · 0 netral · +1 bullish kuat")
-with c2:
-    technical = st.slider("Technical", -1.0, 1.0, 0.0, 0.05)
-    st.caption("−1 bearish kuat · 0 netral · +1 bullish kuat")
-with c3:
-    ml = st.slider("ML Direction", -1.0, 1.0, 0.0, 0.05)
-    st.caption("−1 bearish kuat · 0 netral · +1 bullish kuat")
+fundamental = None
+technical = None
+technical_result = None
+technical_data_status = "unavailable"
 
 st.subheader("🤖 ML Model Intelligence")
 with st.expander(f"Trained model status — {instrument}", expanded=False):
@@ -249,8 +245,9 @@ st.subheader("📚 Fundamental Intelligence")
 fundamental_info = fundamental_inputs_for(instrument)
 with st.expander(f"Fundamental data & drivers — {instrument}", expanded=False):
     st.info(
-        "Status: reference-only. Dashboard belum menerima nilai fundamental live; "
-        "jangan menganggap daftar indikator di bawah sebagai kondisi pasar saat ini."
+        "Status: UNAVAILABLE for automated scoring. The repository currently has "
+        "reference sources but no validated live macro/news feed. These links are "
+        "not converted into a Fundamental Score."
     )
     st.markdown(f"**Driver utama {instrument}:** {fundamental_info['drivers']}")
     for indicator, details in FUNDAMENTAL_INDICATORS.items():
@@ -274,16 +271,29 @@ with st.expander(f"Fundamental data & drivers — {instrument}", expanded=False)
         "memasukkannya sebagai evidence fundamental."
     )
 
+# Live technical intelligence and shared completed-bar history.
+history = None
+if data_mode == "Live" and live_quote is not None:
+    try:
+        history = fetch_daily_history(instrument, outputsize=100)
+        today_utc = live_quote.received_at.date()
+        history = history[history["date"].dt.date < today_utc].copy()
+        technical_result = calculate_technical_score(history)
+        if technical_result.status == "LIVE":
+            technical = technical_result.score
+            technical_data_status = "live"
+        else:
+            technical_data_status = technical_result.status.lower()
+    except (MarketDataError, ValueError, KeyError) as exc:
+        technical_data_status = f"unavailable: {exc}"
+
 # Start without a probability; live ML inference replaces this only when all
 # required daily features and a governed model artifact are available.
 probability = unavailable_result()
 ml_inference = None
 ml_data_status = "not_attempted"
-if data_mode == "Live" and instrument in MAJOR_PAIRS and live_quote is not None:
+if data_mode == "Live" and instrument in MAJOR_PAIRS and live_quote is not None and history is not None:
     try:
-        history = fetch_daily_history(instrument, outputsize=60)
-        today_utc = live_quote.received_at.date()
-        history = history[history["date"].dt.date < today_utc].copy()
         feature_frame = build_features(history)
         if feature_frame.empty:
             raise ValueError("insufficient completed daily bars for ML features")
@@ -385,7 +395,7 @@ m2.metric("Stop Loss", f"{setup.stop_loss:.6f}")
 m3.metric("Take Profit", f"{setup.take_profit:.6f}")
 m4.metric("R:R", f"{setup.risk_reward:.2f}")
 st.caption(
-    f"Signal confidence: {signal.confidence:.0%} · "
+    f"Signal confidence: {signal.confidence:.0%} · Technical: {technical_data_status} · "
     f"Raw direction: {raw_action} · Probability status: {probability.status} · ML data: {ml_data_status}"
 )
 

@@ -184,10 +184,10 @@ if data_mode == "Live" and instrument in MAJOR_PAIRS and live_quote is not None:
         if feature_frame.empty:
             raise ValueError("insufficient completed daily bars for ML features")
         latest = feature_frame.iloc[-1]
-        feature_names = [
-            "ret_1", "ret_5", "ret_10", "ret_20",
-            "vol_10", "vol_20", "range_pct", "volume_change",
-        ]
+        live_model_payload = load_model(instrument)
+        feature_names = live_model_payload.get("features", [])
+        if not feature_names:
+            raise ValueError("model feature contract is empty")
         features = {name: float(latest[name]) for name in feature_names}
         ml_inference = infer_from_features(instrument, features)
         probability = ml_inference.probability

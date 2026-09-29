@@ -21,7 +21,7 @@ jobs:
       - run: pip install -r requirements.txt
       - name: Train major-pair models
         run: |
-          for symbol in "EUR/USD" "GBP/USD" "USD/JPY" "AUD/USD" "USD/CHF" "USD/CAD" "NZD/USD" "XAU/USD"; do
+          for symbol in "EUR/USD" "GBP/USD" "USD/JPY" "AUD/USD" "USD/CHF" "USD/CAD" "NZD/USD"; do
             python -m forex_ai.training.train_forex --symbol "$symbol" --output-dir models
           done
       - name: Validate generated model files

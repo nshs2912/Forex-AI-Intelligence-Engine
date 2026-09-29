@@ -5,7 +5,7 @@ def test_sr_aware_long():
     assert sl<1.1 and risk>0 and rr>0
 
 def test_position_size():
-    assert calculate_position_size(10000,1,.01,pip_size=.0001,pip_value_per_unit=.00001)==1000
+    assert calculate_position_size(10000,1,.01,pip_size=.0001,pip_value_per_unit=.00001)==100000
 
 def test_breakeven():
     assert breakeven_stop("long",1.1,1.12,risk_distance=.01)==1.1

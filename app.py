@@ -141,20 +141,24 @@ st.caption(
     f"Probability status: {probability.status}"
 )
 
-st.subheader("Risk plan")
-st.write(
-    {
-        "Data mode": data_mode,
-        "Position": trade_action,
-        "Instrument": instrument,
-        "Asset class": asset_class,
-        "Reference price": entry,
-        "Entry": setup.entry,
-        "SL": setup.stop_loss,
-        "TP": setup.take_profit,
-        "R:R": setup.risk_reward,
-        "Position units": round(setup.position_units, 2),
-    }
+st.subheader("🛡️ Risk Plan")
+st.caption("Ringkasan level perdagangan yang dihitung oleh Risk Engine.")
+
+r1, r2, r3, r4 = st.columns(4)
+r1.metric("Position", trade_action)
+r2.metric("Instrument", instrument)
+r3.metric("Entry Price", f"{setup.entry:.6f}")
+r4.metric("R:R", f"1 : {setup.risk_reward:.2f}")
+
+r5, r6, r7, r8 = st.columns(4)
+r5.metric("Reference Price", f"{entry:.6f}")
+r6.metric("Stop Loss", f"{setup.stop_loss:.6f}")
+r7.metric("Take Profit", f"{setup.take_profit:.6f}")
+r8.metric("Position Units", f"{setup.position_units:,.2f}")
+
+st.caption(
+    f"Asset class: {asset_class} · Data mode: {data_mode} · "
+    f"Risk per trade: {risk_pct:.1f}%"
 )
 
 if data_mode == "Live" and live_quote:

@@ -6,8 +6,10 @@ from streamlit_autorefresh import st_autorefresh
 
 from forex_ai.glossary import MAJOR_PAIRS, PRECIOUS_METALS, TRADING_GLOSSARY
 from forex_ai.fundamental_info import FUNDAMENTAL_INDICATORS, fundamental_inputs_for
-from forex_ai.market_data import MarketDataError, fetch_live_quote
-from forex_ai.ml_inference import load_model, model_path
+from forex_ai.market_data import MarketDataError, fetch_daily_history, fetch_live_quote
+from forex_ai.ml_inference import infer_from_features, load_model
+from forex_ai.feature_engineering import build_features
+from forex_ai.dss_governance import assess_dss
 from forex_ai.probability import unavailable_result
 from forex_ai.risk_engine import build_trade_setup
 from forex_ai.signal_engine import combine_signals
@@ -164,6 +166,31 @@ signal = combine_signals(fundamental, technical, ml)
 # Do not convert the ensemble score into a fake probability.
 # A probability is shown only when a separately trained/calibrated model is supplied.
 probability = unavailable_result()
+ml_inference = None
+ml_data_status = "not_attempted"
+if data_mode == "Live" and instrument in MAJOR_PAIRS and live_quote is not None:
+    try:
+        history = fetch_daily_history(instrument, outputsize=60)
+        today_utc = live_quote.received_at.date()
+        history = history[history["date"].dt.date < today_utc].copy()
+        feature_frame = build_features(history)
+        if feature_frame.empty:
+            raise ValueError("insufficient completed daily bars for ML features")
+        latest = feature_frame.iloc[-1]
+        feature_names = [
+            "ret_1", "ret_5", "ret_10", "ret_20",
+            "vol_10", "vol_20", "range_pct", "volume_change",
+        ]
+        features = {name: float(latest[name]) for name in feature_names}
+        ml_inference = infer_from_features(instrument, features)
+        probability = ml_inference.probability
+        ml = 2.0 * float(probability.bullish_probability) - 1.0
+        ml_data_status = "live_inference"
+    except (MarketDataError, FileNotFoundError, ValueError, KeyError) as exc:
+        ml_data_status = f"unavailable: {exc}"
+
+signal = combine_signals(fundamental, technical, ml)
+
 if signal.direction == "bullish":
     trade_action = "BUY"
 elif signal.direction == "bearish":
@@ -171,8 +198,14 @@ elif signal.direction == "bearish":
 else:
     trade_action = "WAIT"
 
+risk_side = (
+    "Long" if trade_action == "BUY"
+    else "Short" if trade_action == "SELL"
+    else side
+)
+
 setup = build_trade_setup(
-    side,
+    risk_side,
     entry,
     atr,
     atr_multiplier=atr_multiplier,
@@ -185,8 +218,14 @@ st.subheader("🎯 AI Market Signal")
 a0, a1, a2, a3 = st.columns(4)
 a0.metric("Position", trade_action)
 a1.metric("Reference Price", f"{entry:.6f}")
-a2.metric("Bullish", "N/A")
-a3.metric("Bearish", "N/A")
+a2.metric(
+    "Bullish",
+    f"{probability.bullish_probability:.1%}" if probability.bullish_probability is not None else "N/A",
+)
+a3.metric(
+    "Bearish",
+    f"{probability.bearish_probability:.1%}" if probability.bearish_probability is not None else "N/A",
+)
 st.caption(
     "Calibrated probability: not available. The current engine exposes a directional score; "
     "a held-out calibration model is required before displaying a true probability."
@@ -200,8 +239,36 @@ m3.metric("Take Profit", f"{setup.take_profit:.6f}")
 m4.metric("R:R", f"{setup.risk_reward:.2f}")
 st.caption(
     f"Signal confidence: {signal.confidence:.0%} · "
-    f"Probability status: {probability.status}"
+    f"Probability status: {probability.status} · ML data: {ml_data_status}"
 )
+
+dss = assess_dss(
+    model_status=(
+        ml_inference.model.status
+        if ml_inference is not None
+        else "model_unavailable"
+    ),
+    calibrated=probability.calibrated,
+    data_fresh=(live_quote is not None) if data_mode == "Live" else False,
+    feature_parity=ml_inference is not None,
+    model_metrics_available=bool(
+        ml_inference is not None and ml_inference.model.metrics
+    ),
+    risk_controls_ok=setup.risk_reward >= 1.0,
+)
+
+st.subheader("🧭 DSS Governance")
+if dss.ready:
+    st.success("DSS STATUS: READY")
+else:
+    st.warning("DSS STATUS: GOVERNED / NOT LIVE")
+st.caption(
+    "Output DSS bersifat decision-support dan harus dapat ditelusuri ke data, "
+    "feature, model, validasi, dan risk controls."
+)
+with st.expander("Audit readiness details", expanded=False):
+    for reason in dss.reasons:
+        st.write(f"• {reason}")
 
 st.subheader("🛡️ Risk Plan")
 st.caption("Trade Decision Card — entry dan level risiko dihitung dari harga referensi dan parameter Risk Engine.")

@@ -63,6 +63,22 @@ TRADING_GLOSSARY = {
 }
 
 
+MAJOR_PAIRS = {
+    "EUR/USD": "Euro vs US dollar. One of the core global major pairs.",
+    "USD/JPY": "US dollar vs Japanese yen. Closely associated with Asian-session trading.",
+    "GBP/USD": "British pound vs US dollar. Often known for relatively large price movements.",
+    "AUD/USD": "Australian dollar vs US dollar. Sensitive to Australian/global commodity conditions.",
+    "USD/CHF": "US dollar vs Swiss franc. CHF is widely used as a safe-haven currency.",
+    "USD/CAD": "US dollar vs Canadian dollar. Canadian dollar is sensitive to energy and oil conditions.",
+    "NZD/USD": "New Zealand dollar vs US dollar. Sensitive to New Zealand and global commodity conditions.",
+}
+
+PRECIOUS_METALS = {
+    "XAU/USD": "Gold quoted in US dollars; a precious-metal instrument, not a currency pair.",
+    "XAG/USD": "Silver quoted in US dollars; the standard silver symbol is XAG, not AGU.",
+}
+
+
 def glossary_terms() -> list[tuple[str, str, str]]:
     """Return glossary entries as category, term, definition tuples."""
     return [

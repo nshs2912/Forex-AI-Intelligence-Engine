@@ -27,8 +27,8 @@ class MarketQuote:
     bid: float | None
     ask: float | None
     timestamp: datetime
-    received_at: datetime
     source: str
+    received_at: datetime | None = None
 
 
 class MarketDataError(RuntimeError):

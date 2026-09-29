@@ -1,4 +1,4 @@
-pytest>=8.0,<9
+pytest>=9.1.1,<10
 streamlit>=1.40,<2
 streamlit-autorefresh>=1.0.1,<2
 numpy>=2.0,<3

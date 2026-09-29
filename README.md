@@ -35,3 +35,25 @@ The Streamlit dashboard also includes a compact glossary selector in the sidebar
 The repository explicitly configures pytest to include the project root in its Python path and runs compilation plus python -m pytest -q in GitHub Actions.
 
 > Decision-support software only; not financial advice or a guarantee of returns.
+
+
+## Live market data
+
+The dashboard supports **Live** and **Demo** market-data modes. Live mode uses the Twelve Data quote API for the selected forex or precious-metal instrument. Twelve Data documents real-time forex coverage and precious metals such as XAU/XAG. citeturn0search0
+
+Configure the deployment secret/environment variable:
+
+`TWELVE_DATA_API_KEY`
+
+Do not commit the API key to source control.
+
+When Live mode is selected, the dashboard:
+- fetches the current provider quote;
+- displays provider, symbol and UTC timestamp;
+- displays bid/ask/spread when supplied;
+- automatically refreshes at the selected interval;
+- uses the live quote as the entry reference for the risk calculation.
+
+The provider documents WebSocket streaming for lower-latency tick delivery; the current implementation intentionally starts with REST quote snapshots for deployment simplicity. citeturn0search3turn0search4
+
+A live market-data quote is not a broker execution price. Spread, slippage, contract specifications, latency and broker constraints must still be validated before any trading decision.

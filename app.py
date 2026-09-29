@@ -1,7 +1,6 @@
 """Streamlit dashboard for the Forex AI Intelligence Engine."""
 import streamlit as st
 import streamlit.components.v1 as components
-from datetime import timezone
 from zoneinfo import ZoneInfo
 from streamlit_autorefresh import st_autorefresh
 
@@ -142,27 +141,44 @@ st.caption(
 )
 
 st.subheader("🛡️ Risk Plan")
-st.caption("Ringkasan level perdagangan yang dihitung oleh Risk Engine.")
+st.caption("Trade Decision Card — entry dan level risiko dihitung dari harga referensi dan parameter Risk Engine.")
 
-r1, r2, r3, r4 = st.columns(4)
-r1.metric("Position", trade_action)
-r2.metric("Instrument", instrument)
-r3.metric("Entry Price", f"{setup.entry:.6f}")
-r4.metric("R:R", f"1 : {setup.risk_reward:.2f}")
+signal_class = {
+    "BUY": "🟢 BUY",
+    "SELL": "🔴 SELL",
+    "WAIT": "🟡 WAIT",
+}[trade_action]
 
-r5, r6, r7, r8 = st.columns(4)
-r5.metric("Reference Price", f"{entry:.6f}")
-r6.metric("Stop Loss", f"{setup.stop_loss:.6f}")
-r7.metric("Take Profit", f"{setup.take_profit:.6f}")
-r8.metric("Position Units", f"{setup.position_units:,.2f}")
+card = st.container(border=True)
+with card:
+    st.markdown(f"### {signal_class} · {instrument}")
+    st.caption(
+        f"Asset class: {asset_class} · Data mode: {data_mode} · "
+        f"Signal: {signal.direction.title()} · Score: {signal.score:+.2f}"
+    )
+
+    p1, p2, p3, p4 = st.columns(4)
+    p1.metric("Entry Price", f"{setup.entry:.6f}")
+    p2.metric("Stop Loss", f"{setup.stop_loss:.6f}")
+    p3.metric("Take Profit", f"{setup.take_profit:.6f}")
+    p4.metric("Risk / Reward", f"1 : {setup.risk_reward:.2f}")
+
+    p5, p6, p7 = st.columns(3)
+    p5.metric("Reference Price", f"{entry:.6f}")
+    p6.metric("Position Units", f"{setup.position_units:,.2f}")
+    p7.metric("Risk per Trade", f"{risk_pct:.1f}%")
+
+    if trade_action == "WAIT":
+        st.warning("WAIT — belum ada arah BUY/SELL yang cukup kuat. Risk levels ditampilkan sebagai simulasi, bukan entry recommendation.")
+    else:
+        st.info(f"{trade_action} — Entry Price menggunakan harga referensi saat ini: {setup.entry:.6f}.")
 
 st.caption(
-    f"Asset class: {asset_class} · Data mode: {data_mode} · "
-    f"Risk per trade: {risk_pct:.1f}%"
+    "Catatan: Entry Price adalah reference/live quote, bukan harga eksekusi broker. "
+    "SL/TP adalah hasil kalkulasi Risk Engine berdasarkan ATR dan R:R."
 )
 
 if data_mode == "Live" and live_quote:
-    received_ms = live_quote.received_at.timestamp() * 1000
     tz_name = timezone_options[display_timezone]
     components.html(
         f"""

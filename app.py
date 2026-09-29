@@ -10,7 +10,13 @@ from forex_ai.fundamental_info import (
     fundamental_inputs_for,
     fundamental_sources_for,
 )
-from forex_ai.market_data import MarketDataError, fetch_daily_history, fetch_live_quote
+from forex_ai.market_data import (
+    MarketDataError,
+    fetch_daily_history,
+    fetch_live_quote,
+    quote_age_seconds,
+    quote_freshness,
+)
 from forex_ai.ml_inference import infer_from_features, load_model
 from forex_ai.feature_engineering import build_features
 from forex_ai.dss_governance import assess_dss
@@ -70,6 +76,8 @@ if data_mode == "Live":
     try:
         live_quote = fetch_live_quote(instrument)
         entry = live_quote.price
+        age_seconds = quote_age_seconds(live_quote)
+        freshness = quote_freshness(age_seconds)
         live_tz = timezone_options[display_timezone]
         components.html(
             f"""
@@ -105,7 +113,9 @@ if data_mode == "Live":
         )
         received_local = live_quote.received_at.astimezone(ZoneInfo(live_tz))
         st.caption(
-            f"Quote received: {received_local:%d-%m-%Y %I:%M:%S %p} {display_timezone}"
+            f"Quote timestamp: {live_quote.timestamp.astimezone(ZoneInfo(live_tz)):%d-%m-%Y %I:%M:%S %p} "
+            f"{display_timezone} · Received: {received_local:%d-%m-%Y %I:%M:%S %p} {display_timezone} "
+            f"· Age: {age_seconds:.0f}s · Status: {freshness}"
         )
         if live_quote.bid is not None and live_quote.ask is not None:
             st.caption(

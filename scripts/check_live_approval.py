@@ -1,4 +1,4 @@
-"""Final approval gate for a model/instrument pair."""
+"""Final auditable approval gate for one model/instrument pair."""
 from __future__ import annotations
 
 import argparse
@@ -22,10 +22,28 @@ def main() -> int:
     args = parser.parse_args()
 
     model = validate_model_artifact(args.model)
-    paper = validate_paper_evidence(args.paper)
-    approval = validate_approval_record(args.approval)
-    risk_payload = json.loads(Path(args.risk_json).read_text(encoding="utf-8"))
-    risk = validate_trade_risk(**risk_payload)
+    if not model.instrument:
+        print("APPROVAL BLOCKED: model instrument is missing.")
+        return 1
+
+    model_payload = json.loads(Path(args.model).read_text(encoding="utf-8"))
+    model_id = str(model_payload.get("model_id") or model_payload.get("instrument", ""))
+    paper = validate_paper_evidence(
+        args.paper,
+        expected_model_id=model_id,
+        expected_instrument=model.instrument,
+    )
+    approval = validate_approval_record(
+        args.approval,
+        expected_model_id=model_id,
+        expected_instrument=model.instrument,
+    )
+
+    try:
+        risk_payload = json.loads(Path(args.risk_json).read_text(encoding="utf-8"))
+        risk = validate_trade_risk(**risk_payload)
+    except (OSError, json.JSONDecodeError, TypeError, ValueError):
+        risk = False
 
     gates = {
         "model_validation": model.passed,
@@ -37,6 +55,7 @@ def main() -> int:
     if not all(gates.values()):
         print("APPROVAL BLOCKED")
         return 1
+
     print("APPROVAL GATES PASSED — human authorization record is present.")
     return 0
 

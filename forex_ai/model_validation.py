@@ -21,6 +21,7 @@ MIN_ROC_AUC = 0.55
 MAX_BRIER = 0.25
 MIN_PR_AUC_MARGIN = 0.0
 MAX_MODEL_AGE_DAYS = 365
+REQUIRED_APPROVAL_SCHEMA_VERSION = 1
 
 
 @dataclass(frozen=True)
@@ -77,6 +78,42 @@ def validate_model_artifact(path: str | Path, *, as_of: date | None = None) -> V
             reasons.append(name)
 
     return ValidationResult(instrument, all(checks.values()), checks, tuple(reasons))
+
+
+def validate_approval_record(path: str | Path = "approval_record.json") -> bool:
+    approval_path = Path(path)
+    if not approval_path.exists():
+        return False
+    payload = json.loads(approval_path.read_text(encoding="utf-8"))
+    return (
+        payload.get("schema_version") == REQUIRED_APPROVAL_SCHEMA_VERSION
+        and payload.get("decision") == "approved_for_live"
+        and bool(payload.get("model_id"))
+        and bool(payload.get("instrument"))
+        and bool(payload.get("reviewer"))
+        and bool(payload.get("reviewed_at"))
+        and payload.get("expiry_at")
+        and bool(payload.get("evidence_refs"))
+    )
+
+
+def validate_paper_evidence(path: str | Path) -> bool:
+    evidence_path = Path(path)
+    if not evidence_path.exists():
+        return False
+    payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+    return (
+        payload.get("schema_version") == 1
+        and payload.get("validation_status") == "passed"
+        and int(payload.get("sample_count", 0)) >= 100
+        and payload.get("model_id")
+        and payload.get("instrument")
+        and payload.get("period_start")
+        and payload.get("period_end")
+        and payload.get("cost_model", {}).get("spread") is not None
+        and payload.get("cost_model", {}).get("slippage") is not None
+        and payload.get("human_review", {}).get("decision") == "approved_for_paper"
+    )
 
 
 def validate_all_models(model_dir: str | Path = "models", *, as_of: date | None = None) -> list[ValidationResult]:

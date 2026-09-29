@@ -77,3 +77,35 @@ This glossary explains the main forex, technical-analysis, trade-management, mac
 | Profit Factor | Gross winning profit divided by gross losing loss. |
 
 > **Important:** Definitions are educational. Broker specifications, instrument conventions, execution conditions, and local regulations can differ.
+
+
+## Core 7 Major Currency Pairs
+
+These seven pairs are included as the engine's **core educational major-pair universe**:
+
+| Pair | Description |
+|---|---|
+| **EUR/USD** | Euro vs US dollar. One of the core global major pairs. |
+| **USD/JPY** | US dollar vs Japanese yen. Closely associated with Asian-session trading. |
+| **GBP/USD** | British pound vs US dollar. Often known for relatively large price movements. |
+| **AUD/USD** | Australian dollar vs US dollar. Sensitive to Australian/global commodity conditions. |
+| **USD/CHF** | US dollar vs Swiss franc. CHF is widely used as a safe-haven currency. |
+| **USD/CAD** | US dollar vs Canadian dollar. CAD is sensitive to energy and oil conditions. |
+| **NZD/USD** | New Zealand dollar vs US dollar. Sensitive to New Zealand and global commodity conditions. |
+
+### Important market-data note
+
+“Major pairs” is a conventional educational classification, not a fixed official list. The BIS 2025 survey reports that the US dollar was on one side of 89.2% of global FX trades in April 2025, and the ten most-traded currency pairs all involved USD. The survey also reported substantial growth in USD/CNY, which means a current turnover ranking should not be treated as identical to this conventional seven-pair list. citeturn0search5turn0search1
+
+## Precious Metals
+
+Precious metals should be represented separately from the seven currency pairs:
+
+| Symbol | Instrument | Description |
+|---|---|---|
+| **XAU/USD** | Gold | Gold quoted in US dollars. |
+| **XAG/USD** | Silver | Silver quoted in US dollars. |
+
+CME's FX product guide lists XAU/USD and XAG/USD as spot precious-metal instruments. Therefore, **“AGU” should be corrected to “XAG”** when referring to silver. citeturn0search11
+
+For the Forex AI engine, this distinction is useful because currency pairs and metals can have different tick sizes, contract specifications, volatility characteristics, margin rules, and broker symbol conventions.

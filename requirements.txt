@@ -3,4 +3,4 @@ streamlit>=1.40,<2
 streamlit-autorefresh>=1.0.1,<2
 numpy>=2.0,<3
 pandas>=2.2,<3
-scikit-learn>=1.8,<2
+scikit-learn>=1.9.1,<2

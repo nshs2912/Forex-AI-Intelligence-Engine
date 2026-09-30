@@ -115,3 +115,66 @@ def test_news_provider_rate_limit_is_degraded_not_exception():
     assert count == 0
     assert evidence == ()
     assert "rate limit" in message.lower() or "unavailable" in message.lower()
+
+
+def test_xau_uses_us_macro_and_commodity_news():
+    now = datetime(2026, 9, 29, 12, tzinfo=timezone.utc)
+    us_macro = [{
+        "Event": "Interest Rate",
+        "Actual": "4.0",
+        "Forecast": "4.5",
+        "Previous": "4.5",
+        "Importance": 3,
+        "Date": "2026-09-29T10:00:00+00:00",
+    }]
+    gold_news = [{
+        "title": "Gold rises as safe haven demand strengthens",
+        "date": "2026-09-29T11:00:00+00:00",
+        "source": "Test",
+    }]
+    with patch("forex_ai.fundamental_engine._fetch_country", return_value=us_macro) as macro, patch(
+        "forex_ai.fundamental_engine._fetch_ticker_news", return_value=gold_news
+    ) as ticker:
+        result = fetch_fundamental_score("XAU/USD", now=now)
+    macro.assert_called_once()
+    assert macro.call_args.args[0] == "United States"
+    ticker.assert_called_once()
+    assert ticker.call_args.args[0] == "XAUUSD:CUR"
+    assert result.status == "LIVE"
+    assert result.macro_score is not None
+    assert result.news_score is not None
+    assert result.news_evidence_count == 1
+
+
+def test_xag_uses_silver_ticker_and_not_currency_pair_logic():
+    now = datetime(2026, 9, 29, 12, tzinfo=timezone.utc)
+    us_macro = [{
+        "Event": "GDP Growth",
+        "Actual": "1.0",
+        "Forecast": "2.0",
+        "Previous": "2.0",
+        "Importance": 3,
+        "Date": "2026-09-29T10:00:00+00:00",
+    }]
+    silver_news = [{
+        "title": "Silver falls on a stronger dollar",
+        "date": "2026-09-29T11:00:00+00:00",
+        "source": "Test",
+    }]
+    with patch("forex_ai.fundamental_engine._fetch_country", return_value=us_macro) as macro, patch(
+        "forex_ai.fundamental_engine._fetch_ticker_news", return_value=silver_news
+    ) as ticker:
+        result = fetch_fundamental_score("XAG/USD", now=now)
+    macro.assert_called_once()
+    assert macro.call_args.args[0] == "United States"
+    ticker.assert_called_once()
+    assert ticker.call_args.args[0] == "XAGUSD:CUR"
+    assert result.status == "LIVE"
+    assert result.news_score is not None
+    assert result.news_score < 0
+
+
+def test_unknown_instrument_remains_unavailable():
+    result = fetch_fundamental_score("BTC/USD")
+    assert result.status == "UNAVAILABLE"
+    assert result.score is None

@@ -227,12 +227,12 @@ def _currency_score(events: list[dict[str, object]], now: datetime, polarity_rul
     evidence = [item[2] for item in sorted(weighted, key=lambda item: item[1], reverse=True)]
     return _clamp(value), len(weighted), fresh, evidence
 
-def _news_item_score(item: dict[str, object], now: datetime) -> float | None:
+def _news_item_score(item: dict[str, object], now: datetime, polarity_rules: dict[str, float] = NEWS_POLARITY) -> float | None:
     text = " ".join(
         str(item.get(key) or "")
         for key in ("title", "Title", "description", "Description", "category", "Category")
     ).lower()
-    matches = [value for keyword, value in NEWS_POLARITY.items() if keyword in text]
+    matches = [value for keyword, value in polarity_rules.items() if keyword in text]
     if not matches:
         return None
     polarity = sum(matches) / len(matches)
@@ -240,13 +240,15 @@ def _news_item_score(item: dict[str, object], now: datetime) -> float | None:
     freshness = math.exp(-max(0.0, (now - stamp).total_seconds() / 3600.0) / 48.0)
     return _clamp(polarity * freshness)
 
-def _news_currency_score(items: list[dict[str, object]], now: datetime) -> tuple[float | None, int, list[dict[str, object]]]:
+def _news_currency_score(items: list[dict[str, object]], now: datetime, polarity_rules: dict[str, float] = NEWS_POLARITY, since: datetime | None = None) -> tuple[float | None, int, list[dict[str, object]]]:
     scored = []
     for item in items:
-        score = _news_item_score(item, now)
+        stamp = _parse_datetime(item.get("date") or item.get("Date") or item.get("published") or item.get("Published"))
+        if since is not None and stamp < since:
+            continue
+        score = _news_item_score(item, now, polarity_rules)
         if score is None:
             continue
-        stamp = _parse_datetime(item.get("date") or item.get("Date") or item.get("published") or item.get("Published"))
         evidence = {
             "title": item.get("title") or item.get("Title"),
             "date": item.get("date") or item.get("Date") or item.get("published") or item.get("Published"),
@@ -270,10 +272,21 @@ def fetch_live_news_score(
     timeout: float = 10.0,
     now: datetime | None = None,
 ) -> tuple[float | None, str, int, tuple[dict[str, object], ...], str]:
-    if instrument not in PAIR_CURRENCIES:
-        return None, "UNAVAILABLE", 0, (), "Instrument has no mapped news currencies."
     current = now or datetime.now(timezone.utc)
     start = current - timedelta(days=max(1, lookback_days))
+    if instrument in PRECIOUS_METALS:
+        try:
+            items = _fetch_ticker_news(PRECIOUS_METALS[instrument]["ticker"], timeout)
+        except FundamentalDataError as exc:
+            return None, "UNAVAILABLE", 0, (), str(exc)
+        score, count, evidence = _news_currency_score(
+            items, current, METAL_NEWS_POLARITY, since=start
+        )
+        if score is None:
+            return None, "DEGRADED", 0, (), "No directional live commodity headlines."
+        return score, "LIVE", count, tuple(evidence), f"Live {PRECIOUS_METALS[instrument]['name']} commodity news score."
+    if instrument not in PAIR_CURRENCIES:
+        return None, "UNAVAILABLE", 0, (), "Instrument has no mapped news currencies."
     try:
         base_items = _fetch_country_news(PAIR_CURRENCIES[instrument][0], start, current, timeout)
         quote_items = _fetch_country_news(PAIR_CURRENCIES[instrument][1], start, current, timeout)

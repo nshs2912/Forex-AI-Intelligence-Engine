@@ -306,10 +306,10 @@ def fetch_fundamental_score(
     timeout: float = 10.0,
     now: datetime | None = None,
 ) -> FundamentalResult:
-    if instrument not in PAIR_CURRENCIES:
+    if instrument not in PAIR_CURRENCIES and instrument not in PRECIOUS_METALS:
         return FundamentalResult(
             None, None, None, "UNAVAILABLE", "Trading Economics", 0, 0, {}, (),
-            "Instrument has no mapped macro/news currency pair."
+            "Instrument has no mapped macro/news asset."
         )
     current = now or datetime.now(timezone.utc)
     start = current - timedelta(days=max(1, lookback_days))
@@ -319,17 +319,29 @@ def fetch_fundamental_score(
     macro_evidence = []
     macro_message = ""
     try:
-        base_events = _fetch_country(PAIR_CURRENCIES[instrument][0], start, current, timeout)
-        quote_events = _fetch_country(PAIR_CURRENCIES[instrument][1], start, current, timeout)
-        base_macro, base_count, base_fresh, base_evidence = _currency_score(base_events, current)
-        quote_macro, quote_count, quote_fresh, quote_evidence = _currency_score(quote_events, current)
-        macro_count = base_count + quote_count
-        macro_fresh = base_fresh + quote_fresh
-        macro_evidence = base_evidence + quote_evidence
-        if base_macro is not None and quote_macro is not None:
-            macro_score = _clamp(base_macro - quote_macro)
+        if instrument in PRECIOUS_METALS:
+            base_events = _fetch_country("United States", start, current, timeout)
+            base_macro, base_count, base_fresh, base_evidence = _currency_score(
+                base_events, current, METAL_MACRO_POLARITY
+            )
+            macro_count = base_count
+            macro_fresh = base_fresh
+            macro_evidence = base_evidence
+            macro_score = base_macro
+            if macro_score is None:
+                macro_message = "Insufficient directional US macro evidence for metal."
         else:
-            macro_message = "Insufficient directional macro evidence."
+            base_events = _fetch_country(PAIR_CURRENCIES[instrument][0], start, current, timeout)
+            quote_events = _fetch_country(PAIR_CURRENCIES[instrument][1], start, current, timeout)
+            base_macro, base_count, base_fresh, base_evidence = _currency_score(base_events, current)
+            quote_macro, quote_count, quote_fresh, quote_evidence = _currency_score(quote_events, current)
+            macro_count = base_count + quote_count
+            macro_fresh = base_fresh + quote_fresh
+            macro_evidence = base_evidence + quote_evidence
+            if base_macro is not None and quote_macro is not None:
+                macro_score = _clamp(base_macro - quote_macro)
+            else:
+                macro_message = "Insufficient directional macro evidence."
     except FundamentalDataError as exc:
         macro_message = str(exc)
 

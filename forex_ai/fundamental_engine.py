@@ -17,6 +17,7 @@ except ImportError:
 
 TE_URL = "https://api.tradingeconomics.com/calendar/country"
 NEWS_URL = "https://api.tradingeconomics.com/news/country"
+NEWS_TICKER_URL = "https://api.tradingeconomics.com/news/ticker"
 
 PAIR_CURRENCIES = {
     "EUR/USD": ("Euro Area", "United States"),
@@ -138,12 +139,17 @@ def _polarity(event: str) -> float:
             return value
     return 0.0
 
-def _event_score(event: dict[str, object], now: datetime) -> float | None:
+def _event_score(event: dict[str, object], now: datetime, polarity_rules: dict[str, float] = POLARITY_RULES) -> float | None:
     actual = _number(event.get("Actual"))
     forecast = _number(event.get("Forecast"))
     if actual is None or forecast is None:
         return None
-    polarity = _polarity(str(event.get("Event") or event.get("Category") or ""))
+    event_name = str(event.get("Event") or event.get("Category") or "").lower()
+    polarity = 0.0
+    for keyword, value in polarity_rules.items():
+        if keyword in event_name:
+            polarity = value
+            break
     if polarity == 0:
         return None
     baseline = max(abs(forecast), abs(_number(event.get("Previous")) or 0.0), 1.0)
@@ -182,10 +188,17 @@ def _fetch_country_news(country: str, start: datetime, end: datetime, timeout: f
     url = f"{NEWS_URL}/{quote(country)}/{start:%Y-%m-%d}/{end:%Y-%m-%d}?c={quote(api_key)}&f=json"
     return _request_json(url, timeout, "Trading Economics news feed")
 
-def _currency_score(events: list[dict[str, object]], now: datetime) -> tuple[float | None, int, int, list[dict[str, object]]]:
+def _fetch_ticker_news(ticker: str, timeout: float) -> list[dict[str, object]]:
+    api_key = _secret("TRADING_ECONOMICS_API_KEY")
+    if not api_key:
+        raise FundamentalDataError("TRADING_ECONOMICS_API_KEY is not configured.")
+    url = f"{NEWS_TICKER_URL}/{quote(ticker, safe='')}?c={quote(api_key)}&f=json"
+    return _request_json(url, timeout, "Trading Economics commodity news feed")
+
+def _currency_score(events: list[dict[str, object]], now: datetime, polarity_rules: dict[str, float] = POLARITY_RULES) -> tuple[float | None, int, int, list[dict[str, object]]]:
     weighted = []
     for event in events:
-        score = _event_score(event, now)
+        score = _event_score(event, now, polarity_rules)
         if score is None:
             continue
         importance = max(1.0, min(3.0, float(event.get("Importance") or 1)))

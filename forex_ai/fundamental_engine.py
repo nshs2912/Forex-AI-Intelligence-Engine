@@ -28,6 +28,35 @@ PAIR_CURRENCIES = {
     "NZD/USD": ("New Zealand", "United States"),
 }
 
+PRECIOUS_METALS = {
+    "XAU/USD": {"ticker": "XAUUSD:CUR", "name": "Gold"},
+    "XAG/USD": {"ticker": "XAGUSD:CUR", "name": "Silver"},
+}
+
+METAL_MACRO_POLARITY = {
+    "interest": -1.0, "rate": -1.0, "gdp": -1.0, "growth": -1.0,
+    "pmi": -1.0, "retail": -1.0, "industrial": -1.0, "production": -1.0,
+    "employment": -1.0, "payroll": -1.0, "wage": -1.0, "income": -1.0,
+    "unemployment": 1.0, "jobless": 1.0,
+}
+
+METAL_NEWS_POLARITY = {
+    "gold rises": 1.0, "gold gains": 1.0, "gold climbs": 1.0,
+    "gold advances": 1.0, "gold rallies": 1.0, "gold jumps": 1.0,
+    "silver rises": 1.0, "silver gains": 1.0, "silver climbs": 1.0,
+    "silver advances": 1.0, "silver rallies": 1.0, "silver jumps": 1.0,
+    "safe haven": 1.0, "central bank buying": 1.0, "strong demand": 1.0,
+    "supply deficit": 1.0, "geopolitical risk": 1.0, "weaker dollar": 1.0,
+    "lower yields": 1.0, "rate cut": 1.0, "cuts rates": 1.0, "dovish": 1.0,
+    "gold falls": -1.0, "gold drops": -1.0, "gold slips": -1.0,
+    "gold declines": -1.0, "gold retreats": -1.0, "gold sinks": -1.0,
+    "silver falls": -1.0, "silver drops": -1.0, "silver slips": -1.0,
+    "silver declines": -1.0, "silver retreats": -1.0, "silver sinks": -1.0,
+    "rate hike": -1.0, "raises rates": -1.0, "hawkish": -1.0,
+    "strong dollar": -1.0, "higher yields": -1.0, "yield surge": -1.0,
+    "weak demand": -1.0, "oversupply": -1.0,
+}
+
 POLARITY_RULES = {
     "interest": 1.0, "rate": 1.0, "gdp": 1.0, "growth": 1.0,
     "pmi": 1.0, "retail": 1.0, "industrial": 1.0, "production": 1.0,
